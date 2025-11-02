@@ -1,0 +1,268 @@
+
+> jiangzao@1.0.0 dev
+> next dev
+
+ ⚠ Port 3000 is in use, trying 3001 instead.
+  ▲ Next.js 14.2.33
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1578ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1201ms (688 modules)
+❌ L1 Cache miss: all records
+🔄 Fetching new access token...
+✅ Feishu API success: https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal
+✅ Access token obtained, expires in 2389s
+🔄 Fetching records from Feishu (pageSize: 100)...
+ ✓ Compiled in 347ms (281 modules)
+✅ Feishu API success: https://open.feishu.cn/open-apis/bitable/v1/apps/Juxebp5mFa5h01sApCccAKcNnPb/tables/tblOJWanaihU2lvu/records
+✅ Fetched 4 records from Feishu
+   Transforming record: recgwVIAHq
+     Title: 从谷歌“异类”到Notebook LM之母：一个非典型创始人的反叛之路
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1759939200000
+   Transforming record: recv1aCvvAHUs6
+     Title: Manus联创的"血泪"教训：为什么上下文工程,而非模型微调,才是护城河?
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1760457600000
+   Transforming record: recv1aKDfpaw0a
+     Title: 如何每天专注12小时（杀死廉价多巴胺）——Dan Koe
+     Status: 已发布
+     Tags: 2
+     PublishedAt: undefined
+   Transforming record: recv1bBkMUUQlQ
+     Title: AI的"MS-DOS时代"终结者:从Replica的数百万用户中,她发现了什么秘密?
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1761753600000
+   🖼️  Image URLs: 0 from cache, 4 to fetch
+✅ Using cached access token
+🔄 Fetching 4 image temp URLs...
+✅ Feishu API success: https://open.feishu.cn/open-apis/drive/v1/medias/batch_get_tmp_download_url
+✅ Fetched 4 image URLs
+💾 Cache set: image:url:FF3kbTiPVoAqL9xW9QicO0conbf (TTL: 82800s)
+💾 Cache set: image:url:Hb2mb8sNkowVZsxdbTDcotuqnHe (TTL: 82800s)
+💾 Cache set: image:url:ZvZ3bri9koyb09x6QF1chdFBnsd (TTL: 82800s)
+💾 Cache set: image:url:X2tZbVluBoKf88xDXZ2c9X1Qn7c (TTL: 82800s)
+💾 Cache set: feishu:records:all (TTL: 300s)
+ GET / 200 in 2352ms
+ ⚠ The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.
+ ○ Compiling /content/[id] ...
+ ✓ Compiled /content/[id] in 709ms (1638 modules)
+ GET /content/recv1aKDfpaw0a 200 in 1002ms
+ ✓ Compiled /api/analytics/view in 86ms (926 modules)
+ POST /api/analytics/view 200 in 125ms
+ POST /api/analytics/view 200 in 126ms
+ ✓ Compiled /api/contents/[id] in 61ms (928 modules)
+❌ L2 Cache miss: recv1aKDfpaw0a
+🔄 Fetching new access token...
+✅ Feishu API success: https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal
+✅ Access token obtained, expires in 2380s
+🔄 Fetching record recv1aKDfpaw0a from Feishu...
+✅ Feishu API success: https://open.feishu.cn/open-apis/bitable/v1/apps/Juxebp5mFa5h01sApCccAKcNnPb/tables/tblOJWanaihU2lvu/records/recv1aKDfpaw0a
+   Transforming record: recv1aKDfpaw0a
+     Title: 如何每天专注12小时（杀死廉价多巴胺）——Dan Koe
+     Status: 已发布
+     Tags: 2
+     PublishedAt: undefined
+   🖼️  Image URLs: 0 from cache, 1 to fetch
+✅ Using cached access token
+🔄 Fetching 1 image temp URLs...
+✅ Feishu API success: https://open.feishu.cn/open-apis/drive/v1/medias/batch_get_tmp_download_url
+✅ Fetched 1 image URLs
+💾 Cache set: image:url:FF3kbTiPVoAqL9xW9QicO0conbf (TTL: 82800s)
+💾 Cache set: feishu:record:recv1aKDfpaw0a (TTL: 300s)
+ GET /api/contents/recv1aKDfpaw0a 200 in 1025ms
+✅ L2 Cache hit: recv1aKDfpaw0a
+ GET /api/contents/recv1aKDfpaw0a 200 in 12ms
+❌ L1 Cache miss: all records
+✅ Using cached access token
+🔄 Fetching records from Feishu (pageSize: 100)...
+✅ Feishu API success: https://open.feishu.cn/open-apis/bitable/v1/apps/Juxebp5mFa5h01sApCccAKcNnPb/tables/tblOJWanaihU2lvu/records
+✅ Fetched 4 records from Feishu
+   Transforming record: recgwVIAHq
+     Title: 从谷歌“异类”到Notebook LM之母：一个非典型创始人的反叛之路
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1759939200000
+   Transforming record: recv1aCvvAHUs6
+     Title: Manus联创的"血泪"教训：为什么上下文工程,而非模型微调,才是护城河?
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1760457600000
+   Transforming record: recv1aKDfpaw0a
+     Title: 如何每天专注12小时（杀死廉价多巴胺）——Dan Koe
+     Status: 已发布
+     Tags: 2
+     PublishedAt: undefined
+   Transforming record: recv1bBkMUUQlQ
+     Title: AI的"MS-DOS时代"终结者:从Replica的数百万用户中,她发现了什么秘密?
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1761753600000
+   🖼️  Image URLs: 1 from cache, 3 to fetch
+✅ Using cached access token
+🔄 Fetching 3 image temp URLs...
+✅ Feishu API success: https://open.feishu.cn/open-apis/drive/v1/medias/batch_get_tmp_download_url
+✅ Fetched 3 image URLs
+💾 Cache set: image:url:X2tZbVluBoKf88xDXZ2c9X1Qn7c (TTL: 82800s)
+💾 Cache set: image:url:Hb2mb8sNkowVZsxdbTDcotuqnHe (TTL: 82800s)
+💾 Cache set: image:url:ZvZ3bri9koyb09x6QF1chdFBnsd (TTL: 82800s)
+💾 Cache set: feishu:records:all (TTL: 300s)
+ GET / 200 in 771ms
+ ✓ Compiled in 376ms (1162 modules)
+❌ L1 Cache miss: all records
+🔄 Fetching new access token...
+✅ Feishu API success: https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal
+✅ Access token obtained, expires in 7200s
+🔄 Fetching records from Feishu (pageSize: 100)...
+✅ Feishu API success: https://open.feishu.cn/open-apis/bitable/v1/apps/Juxebp5mFa5h01sApCccAKcNnPb/tables/tblOJWanaihU2lvu/records
+✅ Fetched 4 records from Feishu
+   Transforming record: recgwVIAHq
+     Title: 从谷歌“异类”到Notebook LM之母：一个非典型创始人的反叛之路
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1759939200000
+   Transforming record: recv1aCvvAHUs6
+     Title: Manus联创的"血泪"教训：为什么上下文工程,而非模型微调,才是护城河?
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1760457600000
+   Transforming record: recv1aKDfpaw0a
+     Title: 如何每天专注12小时（杀死廉价多巴胺）——Dan Koe
+     Status: 已发布
+     Tags: 2
+     PublishedAt: undefined
+   Transforming record: recv1bBkMUUQlQ
+     Title: AI的"MS-DOS时代"终结者:从Replica的数百万用户中,她发现了什么秘密?
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1761753600000
+   🖼️  Image URLs: 0 from cache, 4 to fetch
+✅ Using cached access token
+🔄 Fetching 4 image temp URLs...
+✅ Feishu API success: https://open.feishu.cn/open-apis/drive/v1/medias/batch_get_tmp_download_url
+✅ Fetched 4 image URLs
+💾 Cache set: image:url:ZvZ3bri9koyb09x6QF1chdFBnsd (TTL: 82800s)
+💾 Cache set: image:url:X2tZbVluBoKf88xDXZ2c9X1Qn7c (TTL: 82800s)
+💾 Cache set: image:url:FF3kbTiPVoAqL9xW9QicO0conbf (TTL: 82800s)
+💾 Cache set: image:url:Hb2mb8sNkowVZsxdbTDcotuqnHe (TTL: 82800s)
+💾 Cache set: feishu:records:all (TTL: 300s)
+ ✓ Compiled in 117ms (757 modules)
+✅ L1 Cache hit: all records
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/huangchaoqiang/Documents/降噪/.next/cache/webpack/server-development/4.pack.gz_' -> '/Users/huangchaoqiang/Documents/降噪/.next/cache/webpack/server-development/4.pack.gz'
+✅ L1 Cache hit: all records
+ GET / 200 in 52ms
+✅ L1 Cache hit: all records
+ GET / 200 in 32ms
+ ✓ Compiled /content/[id] in 90ms (892 modules)
+ ✓ Compiled /api/analytics/view in 56ms (924 modules)
+ POST /api/analytics/view 200 in 86ms
+ POST /api/analytics/view 200 in 87ms
+ ✓ Compiled /api/contents/[id] in 45ms (926 modules)
+❌ L2 Cache miss: recv1bBkMUUQlQ
+🔄 Fetching new access token...
+✅ Feishu API success: https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal
+✅ Access token obtained, expires in 6990s
+🔄 Fetching record recv1bBkMUUQlQ from Feishu...
+✅ Feishu API success: https://open.feishu.cn/open-apis/bitable/v1/apps/Juxebp5mFa5h01sApCccAKcNnPb/tables/tblOJWanaihU2lvu/records/recv1bBkMUUQlQ
+   Transforming record: recv1bBkMUUQlQ
+     Title: AI的"MS-DOS时代"终结者:从Replica的数百万用户中,她发现了什么秘密?
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1761753600000
+   🖼️  Image URLs: 0 from cache, 1 to fetch
+✅ Using cached access token
+🔄 Fetching 1 image temp URLs...
+✅ Feishu API success: https://open.feishu.cn/open-apis/drive/v1/medias/batch_get_tmp_download_url
+✅ Fetched 1 image URLs
+💾 Cache set: image:url:Hb2mb8sNkowVZsxdbTDcotuqnHe (TTL: 82800s)
+💾 Cache set: feishu:record:recv1bBkMUUQlQ (TTL: 300s)
+ GET /api/contents/recv1bBkMUUQlQ 200 in 805ms
+✅ L2 Cache hit: recv1bBkMUUQlQ
+ GET /api/contents/recv1bBkMUUQlQ 200 in 10ms
+❌ L1 Cache miss: all records
+✅ Using cached access token
+🔄 Fetching records from Feishu (pageSize: 100)...
+✅ Feishu API success: https://open.feishu.cn/open-apis/bitable/v1/apps/Juxebp5mFa5h01sApCccAKcNnPb/tables/tblOJWanaihU2lvu/records
+✅ Fetched 4 records from Feishu
+   Transforming record: recgwVIAHq
+     Title: 从谷歌“异类”到Notebook LM之母：一个非典型创始人的反叛之路
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1759939200000
+   Transforming record: recv1aCvvAHUs6
+     Title: Manus联创的"血泪"教训：为什么上下文工程,而非模型微调,才是护城河?
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1760457600000
+   Transforming record: recv1aKDfpaw0a
+     Title: 如何每天专注12小时（杀死廉价多巴胺）——Dan Koe
+     Status: 已发布
+     Tags: 2
+     PublishedAt: undefined
+   Transforming record: recv1bBkMUUQlQ
+     Title: AI的"MS-DOS时代"终结者:从Replica的数百万用户中,她发现了什么秘密?
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1761753600000
+   🖼️  Image URLs: 1 from cache, 3 to fetch
+✅ Using cached access token
+🔄 Fetching 3 image temp URLs...
+✅ Feishu API success: https://open.feishu.cn/open-apis/drive/v1/medias/batch_get_tmp_download_url
+✅ Fetched 3 image URLs
+💾 Cache set: image:url:X2tZbVluBoKf88xDXZ2c9X1Qn7c (TTL: 82800s)
+💾 Cache set: image:url:FF3kbTiPVoAqL9xW9QicO0conbf (TTL: 82800s)
+💾 Cache set: image:url:ZvZ3bri9koyb09x6QF1chdFBnsd (TTL: 82800s)
+💾 Cache set: feishu:records:all (TTL: 300s)
+ GET / 200 in 887ms
+ POST /api/analytics/view 200 in 5ms
+ POST /api/analytics/view 200 in 5ms
+❌ L2 Cache miss: recgwVIAHq
+✅ Using cached access token
+🔄 Fetching record recgwVIAHq from Feishu...
+✅ Feishu API success: https://open.feishu.cn/open-apis/bitable/v1/apps/Juxebp5mFa5h01sApCccAKcNnPb/tables/tblOJWanaihU2lvu/records/recgwVIAHq
+   Transforming record: recgwVIAHq
+     Title: 从谷歌“异类”到Notebook LM之母：一个非典型创始人的反叛之路
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1759939200000
+   🖼️  Image URLs: 1 from cache, 0 to fetch
+💾 Cache set: feishu:record:recgwVIAHq (TTL: 300s)
+ GET /api/contents/recgwVIAHq 200 in 501ms
+✅ L2 Cache hit: recgwVIAHq
+ GET /api/contents/recgwVIAHq 200 in 3ms
+⏰ Cache expired: feishu:records:all
+❌ L1 Cache miss: all records
+✅ Using cached access token
+🔄 Fetching records from Feishu (pageSize: 100)...
+✅ Feishu API success: https://open.feishu.cn/open-apis/bitable/v1/apps/Juxebp5mFa5h01sApCccAKcNnPb/tables/tblOJWanaihU2lvu/records
+✅ Fetched 4 records from Feishu
+   Transforming record: recgwVIAHq
+     Title: 从谷歌“异类”到Notebook LM之母：一个非典型创始人的反叛之路
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1759939200000
+   Transforming record: recv1aCvvAHUs6
+     Title: Manus联创的"血泪"教训：为什么上下文工程,而非模型微调,才是护城河?
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1760457600000
+   Transforming record: recv1aKDfpaw0a
+     Title: 如何每天专注12小时（杀死廉价多巴胺）——Dan Koe
+     Status: 已发布
+     Tags: 2
+     PublishedAt: undefined
+   Transforming record: recv1bBkMUUQlQ
+     Title: AI的"MS-DOS时代"终结者:从Replica的数百万用户中,她发现了什么秘密?
+     Status: 已发布
+     Tags: 2
+     PublishedAt: 1761753600000
+   🖼️  Image URLs: 4 from cache, 0 to fetch
+💾 Cache set: feishu:records:all (TTL: 300s)
+ GET / 200 in 707ms
+[?25h
