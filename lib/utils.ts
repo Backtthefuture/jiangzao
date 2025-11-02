@@ -93,8 +93,17 @@ export function getRelativeDate(date: Date | string | undefined): string {
   if (diffDays === 1) return '昨天';
   if (diffDays >= 2 && diffDays <= 7) return `${diffDays}天前`;
 
-  // 超过7天显示具体日期
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
+  // 超过7天时，判断是否需要显示年份
+  const currentYear = today.getFullYear();
+  const targetYear = d.getFullYear();
+
+  if (targetYear < currentYear) {
+    // 今年以前: 显示完整日期(带年份)
+    return `${targetYear}年${d.getMonth() + 1}月${d.getDate()}日`;
+  } else {
+    // 今年: 只显示月日
+    return `${d.getMonth() + 1}月${d.getDate()}日`;
+  }
 }
 
 /**
@@ -118,11 +127,23 @@ export function groupContentsByDate(contents: Content[]): DateGroup[] {
 
     const date = new Date(content.publishedAt);
     const relativeDate = getRelativeDate(date);
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
 
-    // 生成dateLabel: "今天 (10月31日)"
-    const dateLabel = `${relativeDate} (${month}月${day}日)`;
+    // 判断是否为相对时间（需要加括号）还是具体日期（不需要括号）
+    const isRelativeTime =
+      relativeDate.includes('今天') ||
+      relativeDate.includes('昨天') ||
+      relativeDate.includes('天前');
+
+    let dateLabel: string;
+    if (isRelativeTime) {
+      // 相对时间: 加括号显示具体日期, e.g., "今天 (10月31日)"
+      const month = date.getMonth() + 1;
+      const day = date.getDate();
+      dateLabel = `${relativeDate} (${month}月${day}日)`;
+    } else {
+      // 具体日期: 直接使用, 无需括号, e.g., "10月21日" 或 "2024年10月10日"
+      dateLabel = relativeDate;
+    }
 
     if (!groupsMap.has(dateLabel)) {
       groupsMap.set(dateLabel, []);

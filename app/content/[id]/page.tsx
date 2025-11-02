@@ -55,6 +55,13 @@ export default function ContentDetail() {
     void loadContent();
   }, [loadContent]);
 
+  // 内容加载完成后滚动到顶部
+  useEffect(() => {
+    if (!loading && content) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [loading, content]);
+
   const handleClickOriginalLink = async () => {
     if (!content) return;
 
@@ -178,7 +185,7 @@ export default function ContentDetail() {
           </div>
 
           {/* CTA Card */}
-          <div className="mt-12 bg-gradient-to-br from-[#667eea] to-[#764ba2] rounded-2xl p-8 shadow-lg">
+          <div className="mt-12 bg-[#007AFF] rounded-2xl p-8 shadow-lg">
             <div className="text-center">
               <h3 className="text-2xl font-bold text-white mb-3">
                 想了解更多?
@@ -188,7 +195,7 @@ export default function ContentDetail() {
               </p>
               <button
                 onClick={handleClickOriginalLink}
-                className="px-8 py-4 bg-white text-[#667eea] text-lg font-semibold rounded-xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 shadow-md"
+                className="px-8 py-4 bg-white text-[#007AFF] text-lg font-semibold rounded-xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 shadow-md"
               >
                 🎧 查看完整访谈
               </button>

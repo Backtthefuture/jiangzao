@@ -74,14 +74,14 @@ export default function TimelineCard({ content }: TimelineCardProps) {
   return (
     <div className="timeline-item relative mb-14">
       {/* 圆点 */}
-      <div className="timeline-dot absolute -left-[85px] top-7 w-3 h-3 bg-white border-[3px] border-[#667eea] rounded-full shadow-[0_0_0_4px_rgba(102,126,234,0.1)] z-10 transition-all duration-300 hover:w-4 hover:h-4 hover:-left-[87px] hover:top-[26px] hover:shadow-[0_0_0_6px_rgba(102,126,234,0.2)] max-md:-left-[6px] max-md:w-2.5 max-md:h-2.5 max-md:hover:w-3.5 max-md:hover:h-3.5 max-md:hover:-left-[7px]" />
+      <div className="timeline-dot absolute -left-[85px] top-7 w-3 h-3 bg-white border-[3px] border-[#007AFF] rounded-full shadow-[0_0_0_4px_rgba(0,122,255,0.15)] z-10 transition-all duration-300 hover:w-4 hover:h-4 hover:-left-[87px] hover:top-[26px] hover:shadow-[0_0_0_6px_rgba(0,122,255,0.25)] max-md:-left-[6px] max-md:w-2.5 max-md:h-2.5 max-md:hover:w-3.5 max-md:hover:h-3.5 max-md:hover:-left-[7px]" />
 
       {/* 内容卡片 */}
       <Link href={`/content/${content.id}`}>
         <div className="timeline-card group bg-white rounded-2xl overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.08)] transition-all duration-[400ms] cubic-bezier(0.4,0,0.2,1) cursor-pointer hover:shadow-[0_12px_32px_rgba(0,0,0,0.15)] hover:-translate-y-1 hover:translate-x-2">
           {/* 封面图 */}
           <div
-            className="card-image relative w-full overflow-hidden aspect-video bg-gradient-to-br from-[#667eea] to-[#764ba2]"
+            className="card-image relative w-full overflow-hidden aspect-video bg-[#FAFAFA]"
           >
             {/* 背景层 - 仅小宇宙显示 */}
             {content.source === 'xiaoyuzhou' &&
@@ -149,7 +149,7 @@ export default function TimelineCard({ content }: TimelineCardProps) {
           </div>
 
           {/* 内容区 */}
-          <div className="card-content p-7 bg-[#F5F3FF] transition-all duration-400 group-hover:bg-[#E8E5FF] max-h-[300px] group-hover:max-h-[800px] overflow-hidden">
+          <div className="card-content p-7 bg-[#F5F5F7] transition-all duration-400 group-hover:bg-[#E5E5E7] max-h-[300px] group-hover:max-h-[800px] overflow-hidden">
             {/* 标题 */}
             <h3 className="text-2xl font-bold text-gray-900 mb-3 leading-snug">
               {content.title}
@@ -162,7 +162,7 @@ export default function TimelineCard({ content }: TimelineCardProps) {
             {content.quotes.length > 0 && (
               <div className="mb-5">
                 {/* 第一条金句（始终显示） */}
-                <div className="text-[17px] text-gray-700 italic leading-relaxed pl-4 border-l-[3px] border-[#667eea]">
+                <div className="text-[17px] text-gray-700 italic leading-relaxed pl-4 border-l-[3px] border-[#007AFF]">
                   💬 {content.quotes[0]}
                 </div>
 
@@ -172,7 +172,7 @@ export default function TimelineCard({ content }: TimelineCardProps) {
                     {content.quotes.slice(1).map((quote, index) => (
                       <div
                         key={index}
-                        className="pt-3 border-t border-dashed border-[#667eea]/30 text-[17px] text-gray-700 italic leading-relaxed pl-4 border-l-[3px] border-[#667eea] opacity-0 group-hover:opacity-100 transition-opacity duration-400"
+                        className="pt-3 border-t border-dashed border-[#007AFF]/30 text-[17px] text-gray-700 italic leading-relaxed pl-4 border-l-[3px] border-[#007AFF] opacity-0 group-hover:opacity-100 transition-opacity duration-400"
                         style={{
                           transitionDelay: `${(index + 1) * 100}ms`,
                         }}
@@ -190,7 +190,7 @@ export default function TimelineCard({ content }: TimelineCardProps) {
               {content.tags.slice(0, 3).map((tag) => (
                 <span
                   key={tag}
-                  className="px-3.5 py-1.5 bg-gradient-to-br from-[#667eea] to-[#764ba2] text-white rounded-[14px] text-sm font-medium"
+                  className="px-3.5 py-1.5 bg-[#007AFF] text-white rounded-[14px] text-sm font-medium"
                 >
                   {tag}
                 </span>

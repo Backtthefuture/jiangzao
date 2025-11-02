@@ -17,7 +17,7 @@ export default function TimelineGroup({ group }: TimelineGroupProps) {
       </div>
 
       {/* 时间轴容器 */}
-      <div className="timeline relative pl-40 max-md:pl-10 before:content-[''] before:absolute before:left-20 before:top-0 before:bottom-0 before:w-0.5 before:bg-gradient-to-b before:from-[#667eea] before:to-[#764ba2] max-md:before:left-0">
+      <div className="timeline relative pl-40 max-md:pl-10 before:content-[''] before:absolute before:left-20 before:top-0 before:bottom-0 before:w-0.5 before:bg-[#007AFF] max-md:before:left-0">
         {group.contents.map((content, index) => (
           <div
             key={content.id}
