@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import UserMenu from '@/components/auth/UserMenu';
 
 export default function Header() {
   return (
@@ -14,32 +15,37 @@ export default function Header() {
           </Link>
 
           {/* Navigation */}
-          <nav className="flex items-center space-x-8">
-            <Link
-              href="/"
-              className="text-gray-700 hover:text-primary transition-colors"
-            >
-              首页
-            </Link>
-            <Link
-              href="/tags"
-              className="text-gray-700 hover:text-primary transition-colors"
-            >
-              标签
-            </Link>
-            <Link
-              href="/guests"
-              className="text-gray-700 hover:text-primary transition-colors"
-            >
-              嘉宾
-            </Link>
-            <Link
-              href="/about"
-              className="text-gray-700 hover:text-primary transition-colors"
-            >
-              关于
-            </Link>
-          </nav>
+          <div className="flex items-center space-x-8">
+            <nav className="flex items-center space-x-8">
+              <Link
+                href="/"
+                className="text-gray-700 hover:text-primary transition-colors"
+              >
+                首页
+              </Link>
+              <Link
+                href="/tags"
+                className="text-gray-700 hover:text-primary transition-colors"
+              >
+                标签
+              </Link>
+              <Link
+                href="/guests"
+                className="text-gray-700 hover:text-primary transition-colors"
+              >
+                嘉宾
+              </Link>
+              <Link
+                href="/about"
+                className="text-gray-700 hover:text-primary transition-colors"
+              >
+                关于
+              </Link>
+            </nav>
+
+            {/* User Menu */}
+            <UserMenu />
+          </div>
         </div>
       </div>
     </header>

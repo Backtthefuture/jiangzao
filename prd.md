@@ -1,16 +1,294 @@
 # 产品需求文档 (PRD)
 ## 降噪 - AI行业访谈精华策展平台
 
-**文档版本**: V1.1.12 (飞书多维表格驱动版)
+**文档版本**: V1.2.0 (Supabase 用户认证集成版)
 **创建日期**: 2025-10-30
-**最后更新**: 2025-11-02
+**最后更新**: 2025-11-03
 **产品负责人**: 黄超强
 **设计阶段**: MVP (最小可行产品)
-**技术架构**: 飞书多维表格 + Next.js
+**技术架构**: 飞书多维表格 + Next.js + Supabase Auth
 
 ---
 
 ## 🆕 版本更新记录
+
+### V1.2.0 - Supabase 用户认证系统
+**版本号**: 1.2.0
+**更新日期**: 2025-11-03
+**更新类型**: ✨ Feature (Minor Release)
+**优先级**: 🟢 中（功能增强）
+
+#### 📋 需求背景
+- **核心需求**：为"降噪"平台引入完整的用户认证系统
+  - 支持用户注册、登录、退出功能
+  - 使用邮箱验证确保账号安全性
+  - 为后续用户个性化功能（收藏、评论等）打下基础
+- **技术选型**：采用 Supabase 官方托管服务
+  - 开箱即用的认证服务，无需配置 SMTP
+  - 提供完整的用户管理后台
+  - 支持多种认证方式扩展（OAuth、Magic Link 等）
+
+#### 🎯 核心功能
+
+##### 1. 用户注册
+- **注册方式**：邮箱 + 密码
+- **验证流程**：
+  - 用户填写邮箱和密码（≥6位）
+  - 系统发送验证邮件到用户邮箱
+  - 用户点击邮件中的验证链接完成激活
+  - 验证成功后跳转到成功页面
+- **表单验证**：
+  - 邮箱格式校验
+  - 密码长度校验（最少6位）
+  - 两次密码输入一致性校验
+  - 友好的中文错误提示
+
+##### 2. 用户登录
+- **登录方式**：邮箱 + 密码
+- **登录流程**：
+  - 用户输入已注册的邮箱和密码
+  - 系统验证凭证
+  - 登录成功后自动跳转到首页
+  - 保持登录状态（Session 管理）
+- **错误处理**：
+  - 邮箱或密码错误提示
+  - 未验证邮箱提示
+  - 网络错误友好提示
+
+##### 3. 用户菜单
+- **显示位置**：页面右上角（Header 导航栏）
+- **未登录状态**：显示"登录"和"注册"按钮
+- **已登录状态**：
+  - 显示用户头像（邮箱首字母圆形徽章）
+  - 显示用户邮箱地址
+  - 点击展开下拉菜单
+  - 提供"退出登录"操作
+- **响应式设计**：
+  - 桌面端显示完整邮箱
+  - 移动端仅显示头像徽章
+
+##### 4. 会话管理
+- **自动维护**：使用 Supabase SSR 包管理 Session
+- **Cookie 存储**：HttpOnly Cookie，防止 XSS 攻击
+- **中间件刷新**：自动刷新过期的 Session
+- **路由保护**：支持未来的受保护路由功能
+
+#### 🏗️ 技术实现
+
+##### 技术栈
+- **认证服务**：Supabase Authentication (官方托管)
+- **前端框架**：Next.js 14 App Router
+- **SSR 集成**：@supabase/ssr (服务端渲染支持)
+- **UI 组件**：自定义 React 组件
+
+##### 文件结构
+```
+lib/supabase/
+├── client.ts              # 客户端 Supabase 客户端
+├── server.ts              # 服务端 Supabase 客户端
+└── middleware.ts          # 中间件 Session 管理
+
+app/api/auth/
+├── signup/route.ts        # 注册 API
+├── login/route.ts         # 登录 API
+├── logout/route.ts        # 退出登录 API
+├── callback/route.ts      # 邮箱验证回调
+├── resend/route.ts        # 重发验证邮件
+└── user/route.ts          # 获取当前用户
+
+app/auth/
+├── login/page.tsx         # 登录页面
+├── signup/page.tsx        # 注册页面
+├── callback-success/      # 验证成功页面
+└── error/page.tsx         # 认证错误页面
+
+components/auth/
+├── LoginForm.tsx          # 登录表单组件
+├── SignupForm.tsx         # 注册表单组件
+└── UserMenu.tsx           # 用户菜单组件
+
+middleware.ts              # Next.js 中间件（Session 刷新）
+```
+
+##### 环境变量配置
+```bash
+# Supabase 官方托管实例
+NEXT_PUBLIC_SUPABASE_URL=https://tnzmfewajmptyxwcunpu.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
+
+# 站点配置
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+##### 核心 API 设计
+
+**POST /api/auth/signup** - 用户注册
+```typescript
+Request: { email: string, password: string }
+Response: {
+  message: string,
+  user?: User,
+  requiresEmailVerification?: boolean
+}
+```
+
+**POST /api/auth/login** - 用户登录
+```typescript
+Request: { email: string, password: string }
+Response: {
+  message: string,
+  user: User,
+  session: Session
+}
+```
+
+**POST /api/auth/logout** - 退出登录
+```typescript
+Response: { message: string }
+```
+
+**GET /api/auth/user** - 获取当前用户
+```typescript
+Response: { user: User } | { error: string }
+```
+
+**GET /api/auth/callback** - 邮箱验证回调
+```typescript
+Query: { code: string }
+Redirect: /auth/callback-success | /auth/error
+```
+
+#### 🎨 用户体验
+
+##### 注册流程
+```
+┌─────────────────────────────────────────────────┐
+│  1. 访问注册页面 (/auth/signup)                 │
+│     ↓                                            │
+│  2. 填写邮箱和密码                               │
+│     ↓                                            │
+│  3. 点击"注册"按钮                               │
+│     ↓                                            │
+│  4. 显示"请查收邮箱验证邮件"提示                  │
+│     ↓                                            │
+│  5. 用户查收邮件并点击验证链接                    │
+│     ↓                                            │
+│  6. 跳转到验证成功页面                           │
+│     ↓                                            │
+│  7. 点击"返回首页"或使用邮箱登录                  │
+└─────────────────────────────────────────────────┘
+```
+
+##### 登录流程
+```
+┌─────────────────────────────────────────────────┐
+│  1. 访问登录页面 (/auth/login)                   │
+│     ↓                                            │
+│  2. 输入邮箱和密码                               │
+│     ↓                                            │
+│  3. 点击"登录"按钮                               │
+│     ↓                                            │
+│  4. 验证成功，自动跳转首页                       │
+│     ↓                                            │
+│  5. 首页右上角显示用户菜单                       │
+└─────────────────────────────────────────────────┘
+```
+
+#### ✅ 实施检查清单
+
+- [x] 安装 Supabase 依赖包
+  - [x] @supabase/supabase-js
+  - [x] @supabase/ssr
+- [x] 创建 Supabase 官方实例
+  - [x] 注册 Supabase 账号
+  - [x] 创建项目并配置区域
+  - [x] 获取 Project URL 和 API Key
+- [x] 配置环境变量
+  - [x] NEXT_PUBLIC_SUPABASE_URL
+  - [x] NEXT_PUBLIC_SUPABASE_ANON_KEY
+  - [x] NEXT_PUBLIC_SITE_URL
+- [x] 创建 Supabase 客户端
+  - [x] 客户端版本 (client.ts)
+  - [x] 服务端版本 (server.ts)
+  - [x] 中间件版本 (middleware.ts)
+- [x] 实现 API 路由
+  - [x] 注册接口 (/api/auth/signup)
+  - [x] 登录接口 (/api/auth/login)
+  - [x] 退出接口 (/api/auth/logout)
+  - [x] 回调接口 (/api/auth/callback)
+  - [x] 重发验证邮件 (/api/auth/resend)
+  - [x] 获取用户信息 (/api/auth/user)
+- [x] 创建认证 UI 组件
+  - [x] 注册表单 (SignupForm.tsx)
+  - [x] 登录表单 (LoginForm.tsx)
+  - [x] 用户菜单 (UserMenu.tsx)
+- [x] 创建认证页面
+  - [x] 注册页面 (/auth/signup)
+  - [x] 登录页面 (/auth/login)
+  - [x] 验证成功页面 (/auth/callback-success)
+  - [x] 错误页面 (/auth/error)
+- [x] 集成到主应用
+  - [x] 在 Header 中显示 UserMenu
+  - [x] 配置 Next.js 中间件
+  - [x] 测试完整注册登录流程
+- [x] Supabase Dashboard 配置
+  - [x] 配置 Site URL
+  - [x] 配置 Redirect URLs
+  - [x] 启用邮箱验证功能
+  - [x] 测试邮件发送
+
+#### 🧪 测试场景
+
+##### 功能测试
+- [x] 用户可以成功注册新账号
+- [x] 注册后收到验证邮件
+- [x] 点击验证链接后成功激活账号
+- [x] 已验证用户可以成功登录
+- [x] 登录后在首页显示用户菜单
+- [x] 用户菜单显示正确的邮箱地址
+- [x] 点击退出登录成功退出
+- [x] 退出后显示登录/注册按钮
+
+##### 错误处理测试
+- [x] 邮箱格式错误时显示提示
+- [x] 密码长度不足时显示提示
+- [x] 两次密码不一致时显示提示
+- [x] 登录凭证错误时显示提示
+- [x] 未验证邮箱登录时显示提示
+
+#### 📊 成果指标
+
+- **开发工作量**：~4小时
+- **新增代码**：~1200 行
+- **新增文件**：15 个
+- **依赖包**：2 个 (@supabase/supabase-js, @supabase/ssr)
+- **API 端点**：6 个
+- **UI 组件**：3 个
+- **页面路由**：4 个
+
+#### 🎯 后续计划
+
+V1.2.0 完成了基础的用户认证系统，为后续功能打下基础：
+
+##### 短期计划（V1.2.x）
+- 用户个人资料页面
+- 密码重置功能
+- 社交登录（Google、GitHub）
+- 用户头像上传
+
+##### 中期计划（V1.3.x）
+- 用户收藏内容功能
+- 用户浏览历史记录
+- 用户个性化推荐
+- 用户评论和互动
+
+#### 📚 相关文档
+
+- **Supabase 认证文档**：`SUPABASE_AUTH.md`
+- **环境变量配置**：`.env.local`
+- **技术架构**：`CLAUDE.md`
+
+---
 
 ### V1.1.14 - 详情页滚动位置优化 + CTA Card 配色修复
 **版本号**: 1.1.14
