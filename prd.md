@@ -1,16 +1,1000 @@
 # 产品需求文档 (PRD)
 ## 降噪 - AI行业访谈精华策展平台
 
-**文档版本**: V1.2.0 (Supabase 用户认证集成版)
+**文档版本**: V1.2.2 (内容访问限制落地与阅读历史)
 **创建日期**: 2025-10-30
-**最后更新**: 2025-11-03
+**最后更新**: 2025-11-05
 **产品负责人**: 黄超强
 **设计阶段**: MVP (最小可行产品)
-**技术架构**: 飞书多维表格 + Next.js + Supabase Auth
+**技术架构**: 飞书多维表格 + Next.js + Supabase Auth + 内容访问控制
 
 ---
 
 ## 🆕 版本更新记录
+
+### V1.2.2 - 内容访问限制落地 & 阅读历史体验 ✅
+**版本号**: 1.2.2
+**更新日期**: 2025-11-05
+**完成日期**: 2025-11-04
+**更新类型**: ✨ Feature (Minor Release)
+**优先级**: 🟢 中（留存与合规）
+**状态**: ✅ 已完成并上线
+
+#### 📋 需求背景
+- V1.2.1 仅定义了访问限制策略，实际实现仍存在以下缺口：
+  - 内容详情页仍为纯客户端渲染，完整正文会先下发到浏览器再做遮罩，可被轻易绕过。
+  - Supabase 仅记录 `content_views`（用户+内容），无法支持“每月额度”与匿名读者的服务端判定。
+  - 阅读历史页面未落地，登录用户无法查看本月阅读情况。
+- V1.2.2 目标：
+  - **从端到端落地访问控制**：服务端判定并返回截断/完整正文，匿名读者也能被限制。
+  - **完善留存体验**：提供阅读历史页和可感知的额度提示，支撑登录活跃。
+  - **保证兼容与可回滚**：不影响现有 Feishu 数据流、缓存层和 SQLite 统计。
+
+#### 🎯 核心功能
+
+##### 1. 统一访问控制 API（服务端强制）
+- 新增 `POST /api/content/access`：
+  - 入参：`{ contentId }`
+  - 功能：识别 Supabase 用户或 `anon_id`，在服务端完成“是否计数 + 返回内容”原子操作。
+  - 返回：`{ hasAccess, isAuthenticated, viewCount, maxViews, resetDate, timezone, content }`
+  - 逻辑：
+    1. 生成/读取 HttpOnly `anon_id`（匿名用户）。
+    2. 计算业务月窗口（Asia/Shanghai）。
+    3. 对已阅读内容命中直接放行；否则根据额度（3/10）决定是否返回完整正文。
+    4. 落库 `content_monthly_views` 或 `anon_monthly_views`，幂等去重。
+- `GET /api/user/reading-stats` 更新：改为读取月度表并返回最近 20 条记录，含剩余额度与重置倒计时。
+- 旧接口处理：
+  - `POST /api/content/track-view`、`GET /api/content/check-access/[id]` 标记为 deprecated，迁移后移除调用。
+
+##### 2. 内容详情页 RSC 化 & 截断渲染
+- `app/content/[id]/page.tsx` 改为 Server Component：
+  - 服务端调用 `/api/content/access` 获取 gated 内容与统计。
+  - 将 `content`（完整或截断）、`viewStats`、`hasAccess` 传递给客户端展示组件。
+  - 原客户端逻辑保留 UI，移除直接请求完整正文的可能。
+- 确保对搜索引擎 UA 使用白名单策略，始终返回完整正文（在 API 层识别）。
+- 未登录读者显示剩余额度提示和截断+遮罩；已登录超限显示下月重置信息。
+
+##### 3. 阅读历史页面（登录用户）
+- 新增 `app/user/reading-history/page.tsx`：
+  - 仅在登录态可访问（续用现有 middleware 保护逻辑）。
+  - 展示：
+    - 本月阅读进度条（`viewCount / maxViews`）。
+    - 重置倒计时（距下月 1 日剩余天数）。
+    - 最近阅读列表（标题、嘉宾、阅读时间，可通过 Contents API 批量获取元数据）。
+  - 支持空态（本月尚未阅读）和加载态。
+- 导航入口：在用户菜单或详情页 CTA 提供链接（优先在用户菜单）。
+
+##### 4. 匿名额度与数据一致性
+- HttpOnly `anon_id` 生成策略：首次匿名访问详情页时写入，生命周期 6 个月。
+- 匿名额度存储于 `anon_monthly_views`（可按需清理历史数据）。
+- 错误兜底：
+  - Supabase 写入失败 → 返回截断正文 + 提示稍后重试，避免 fail-open。
+  - 读取失败 → 提供“暂时无法计算额度”提示，不影响页面渲染。
+
+#### 🎨 ASCII 原型图
+
+##### 原型 A：详情页（已登录，额度充足）
+```
+┌────────────────────────────────────────────────────────────────┐
+│  降噪  AI访谈精华策展        首页 | 标签 | 嘉宾 | 关于   [User▾]│
+├────────────────────────────────────────────────────────────────┤
+│  ℹ️ 本月还可阅读 7 篇文章（10/月）                                     │
+├────────────────────────────────────────────────────────────────┤
+│  [封面图]  AIGC 的下一站：对话孙正义                                 │
+│  嘉宾: 孙正义  |  来源: 小宇宙  |  发布: 2025-11-04                     │
+│  #AI #投资 #日本                                                   │
+│----------------------------------------------------------------│
+│  ## 核心观点                                                     │
+│  - ...                                                          │
+│  - ...                                                          │
+│  ## 正文                                                         │
+│  .....（完整 Markdown 渲染）                                     │
+│                                                                  │
+│  🔗 查看原链接   👁 256 次阅读                                   │
+└────────────────────────────────────────────────────────────────┘
+```
+
+##### 原型 B：详情页（未登录，额度用尽）
+```
+┌────────────────────────────────────────────────────────────────┐
+│  降噪  AI访谈精华策展        首页 | 标签 | 嘉宾 | 关于        [登录]│
+├────────────────────────────────────────────────────────────────┤
+│  ⚠️ 已达到免费阅读上限（3 篇），登录后本月可阅读 10 篇完整文章            │
+├────────────────────────────────────────────────────────────────┤
+│  [封面图]  新能源汽车的革命：对话何小鹏                               │
+│  ...（正文前 500 字，句末截断）                                     │
+│  ────────────────────────────────────────                      │
+│  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒     │
+│  ▒  🔒 免费阅读额度已用完                                         │
+│  ▒  登录后可继续阅读 10 篇/月                                     │
+│  ▒  [立即登录]  [免费注册]                                        │
+│  ▒  💡 登录后可在「阅读历史」查看本月足迹                          │
+│  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒     │
+└────────────────────────────────────────────────────────────────┘
+```
+
+##### 原型 C：阅读历史页面
+```
+┌────────────────────────────────────────────────────────────────┐
+│  降噪  AI访谈精华策展        首页 | 标签 | 嘉宾 | 关于   [User▾] │
+├────────────────────────────────────────────────────────────────┤
+│  我的阅读历史                                                     │
+│  ─────────────────────────────────────────────────────────────── │
+│  本月阅读 6 / 10 篇   ██████████░░░░░░░░░░ 60%                      │
+│  距离额度重置还有 12 天（2025-12-01）                               │
+│                                                                  │
+│  [11-04] AI 的未来：与李开复的对话              👤 李开复          │
+│         阅读时间：21:45                                           │
+│  [11-03] 新能源汽车的革命：对话何小鹏            👤 何小鹏          │
+│         阅读时间：09:30                                           │
+│  ...（最近 20 条，支持跳转）                                      │
+│                                                                  │
+│  ❄️ 本月还未开始阅读？快去精选内容看看吧！                           │
+└────────────────────────────────────────────────────────────────┘
+```
+
+#### 🧱 技术架构与要点
+- 数据层：
+  - 新增表 `content_monthly_views`（user_id, content_id, month_start, first_viewed_at, last_viewed_at, PRIMARY KEY(user_id, content_id, month_start)）。
+  - 新增表 `anon_monthly_views`（anon_id, content_id, month_start, ...），可按需清理旧数据。
+  - 所有“月度”计算使用 `date_trunc('month', (now() at time zone 'Asia/Shanghai'))`。
+- API 层：
+  - 新增 `/api/content/access`，整合检查、计数、内容返回；补充 UA 白名单逻辑。
+  - `/api/user/reading-stats` 改读月度表并返回 enriched recentViews。
+  - 废弃 `/api/content/track-view` 与 `/api/content/check-access/[id]` 的消费方（保留端点一版本以便回滚）。
+- 身份层：
+  - `lib/identity.ts` 新增工具：生成/解析 HttpOnly `anon_id`，封装 Supabase 会话获取。
+  - 中间件刷新流程保持不变，匿名仅使用 Cookie，无需鉴权。
+- 页面层：
+  - `app/content/[id]/page.tsx` 采用 Server Component + Suspense 的混合模式；客户端保留横幅/遮罩组件。
+  - 新增 `app/user/reading-history/page.tsx` 并在用户菜单引用。
+- 兼容性：
+  - Feishu 数据获取、缓存层、SQLite 统计 (`analytics` 表) 全部不变。
+  - 所有变更集中在 App Router 内容详情域、Supabase 交互和新页面。
+- 回滚策略：
+  - 保留旧 API 与表结构 1 个版本，提供 feature flag `VIEW_LIMIT_V122_ENABLED` 控制新流程启用。
+  - 配置开关可快速恢复到 V1.2.1 行为（仅限登录配额，前端遮罩）。
+
+#### ✅ 实施清单
+- [x] DDL：创建 `content_monthly_views`、`anon_monthly_views`、索引与 RLS 策略；数据迁移脚本（将既有 `content_views` 映射至月度表）。
+- [x] Node helpers：`lib/identity.ts`（anon_id）、`lib/utils.ts`（truncateMarkdown、calculateDaysUntilReset）。
+- [x] API：实现 `/api/content/access` + 更新 `/api/user/reading-stats`；旧接口标记 deprecated。
+- [x] 页面：RSC 化 `app/content/[id]/page.tsx`，引入 `ContentAccessGate`、`PaywallOverlay`、`ViewLimitBanner` 客户端组件调整；新增 `/user/reading-history`。
+- [x] 导航：用户菜单加"阅读历史"入口；详情页 CTA 引导登录或跳转阅读历史。
+- [x] QA：登录/未登录配额、匿名 cookie 生命周期、跨月重置、SEO UA 白名单、加载与空态、回滚开关。
+
+#### 🔧 实施记录与修复
+
+**完成日期**: 2025-11-04
+
+##### 关键修复
+
+1. **Next.js 'use server' 编译错误修复**
+   - **问题**: `lib/identity.ts` 文件使用了 `'use server'` 指令,但导出了常量和非异步函数,导致编译错误
+   - **错误信息**: "Only async functions are allowed to be exported in a 'use server' file"
+   - **解决方案**:
+     - 创建新文件 `lib/identity-constants.ts` 存放常量和类型定义:
+       - `ANON_COOKIE_NAME = 'jz_anon_id'`
+       - `ANON_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180` (180天)
+       - `AnonIdentityResult` 接口
+     - 修改 `lib/identity.ts` 所有函数为异步函数
+     - 更新所有引用文件的导入语句和函数调用 (添加 await 关键字):
+       - `app/api/content/access/route.ts`
+       - `app/content/[id]/page.tsx`
+
+2. **Supabase 数据库迁移脚本修复**
+   - **问题**: 原始迁移脚本包含外键约束导致 Supabase 执行失败
+   - **错误信息**: "Error: Failed to fetch (api.supabase.com)"
+   - **解决方案**:
+     - 创建修复版迁移脚本 `supabase_migration_v1.2.1_fixed.sql`:
+       - 移除 `REFERENCES auth.users(id) ON DELETE CASCADE` 外键约束
+     - 创建修复版迁移脚本 `supabase_migration_v1.2.2_fixed.sql`:
+       - 移除外键约束
+       - 将 `anon_monthly_views.anon_id` 从 UUID 改为 TEXT 类型
+       - 添加数据迁移错误处理 (使用 DO $$ 块进行条件迁移)
+
+3. **阅读历史页面数据库表缺失**
+   - **问题**: 登录后访问阅读历史页面报错,服务端日志显示找不到表
+   - **错误信息**: "Could not find the table 'public.content_monthly_views' in the schema cache"
+   - **解决方案**: 在 Supabase SQL Editor 中执行修复版迁移脚本,成功创建:
+     - `content_monthly_views` 表 (登录用户月度阅读记录)
+     - `anon_monthly_views` 表 (匿名用户月度阅读记录)
+     - 相关索引和 RLS 策略
+
+##### 技术架构细节
+
+- **身份识别系统**:
+  - 登录用户: 使用 Supabase `auth.uid()`
+  - 匿名用户: 使用 HttpOnly Cookie `jz_anon_id` (180天有效期)
+  - 生成策略: `lib/identity.ts` 的 `resolveAnonId()` 函数
+
+- **数据库表结构**:
+  - `content_monthly_views`: (user_id, content_id, month_start) 为联合主键
+  - `anon_monthly_views`: (anon_id, content_id, month_start) 为联合主键
+  - 业务月计算: 使用 Asia/Shanghai 时区的 `date_trunc('month', ...)`
+
+- **RLS 策略**:
+  - 登录用户: 只能访问自己的记录 (`auth.uid() = user_id`)
+  - 匿名用户: 使用宽松策略 (`USING (true)`) 由服务端控制
+
+##### 验证结果
+- ✅ 登录/注册功能正常
+- ✅ 内容访问控制生效 (3篇/10篇限制)
+- ✅ 阅读历史页面正常显示
+- ✅ 匿名用户额度追踪正常
+- ✅ 月度重置逻辑正确
+- ✅ Feature flag (`VIEW_LIMIT_V122_ENABLED`) 开关正常
+
+#### 🧪 验证范围
+- Supabase SQL：
+  - 插入多月数据，确认 `month_start` 去重与索引表现。
+  - 匿名/登录双表互不影响。
+- API：
+  - `/api/content/access` 幂等（同一内容重复访问不增加计数）。
+  - 错误场景返回截断正文并附 error message。
+- 前端：
+  - 登录/未登录超过额度的 UI 差异。
+  - 阅读历史页加载态、空态、列表跳转。
+  - Feature flag 关闭时恢复 V1.2.1 行为。
+
+#### 📌 影响范围声明
+- ✅ 无改动：Feishu 拉取链路、SQLite `analytics`、缓存策略、主页/标签/嘉宾页。
+- ♻️ 轻度改动：内容详情页（渲染方式调整）、用户菜单（新增入口）。
+- ➕ 新增：访问控制 API、阅读历史页面、身份/工具库。
+
+### V1.2.1 - 内容访问限制与用户增长系统
+**版本号**: 1.2.1
+**更新日期**: 2025-11-03
+**更新类型**: ✨ Feature (Minor Release)
+**优先级**: 🟢 中（商业增长）
+
+#### 📋 需求背景
+- **核心需求**：通过内容访问限制促进用户注册和登录
+  - 免费用户（未登录）：可完整查看 3 篇文章
+  - 登录用户：可完整查看 10 篇文章/月
+  - 超出限制后：显示前 500 字 + 模糊遮罩 + 登录/升级提示
+- **商业目标**：
+  - 提升用户注册转化率
+  - 增加用户登录活跃度
+  - 为未来付费功能做铺垫
+- **用户体验**：
+  - 不影响新用户首次体验（允许免费阅读 3 篇）
+  - 登录用户获得更多价值（10 篇/月）
+  - 超限提示友好，不阻断阅读意愿
+
+#### 🎯 核心功能（经评审修订后）
+
+##### 1. 阅读次数限制（服务端强制）
+- 访问判定在服务端完成：未授权时不下发完整正文，只返回“截断版内容”。
+- 免费用户（未登录）：
+  - 上限：3 篇完整文章/自然月
+  - 追踪：服务端基于 HttpOnly Cookie `anon_id` 做月度去重计数；可选用 localStorage 仅做 UI 剩余额度提示。
+  - 重置：按业务时区（默认 `Asia/Shanghai`）在每月 1 日重置。
+  - 超限：返回截断正文 + PaywallOverlay。
+- 登录用户：
+  - 上限：10 篇完整文章/自然月
+  - 追踪：Supabase 表 `content_monthly_views`（按“用户+内容+月”去重）。
+  - 重置：按业务时区（默认 `Asia/Shanghai`）在每月 1 日重置。
+  - 超限：返回截断正文 + PaywallOverlay（提示下月重置）。
+
+##### 2. 内容截断与遮罩（源头截断）
+- 服务端基于权限直接返回“完整”或“截断”正文，避免把完整正文下发到浏览器后再遮罩。
+- 截断逻辑：
+  - 移除 Markdown 标记、代码块、链接等后按 Unicode 计数。
+  - 截取前 500 字，优先在句末标点（。！？./?!）处收尾；否则直接 500 字 + "..."。
+- 遮罩样式：
+  - 仍提供渐变模糊与 PaywallOverlay，但超限时正文本体即为“截断版”。
+
+##### 3. 访问提示界面
+- **ViewLimitBanner（顶部横幅）**：
+  - 位置：内容详情页顶部（ContentCard 上方）
+  - 显示内容：
+    - 免费用户："您还可以免费阅读 X 篇完整文章"
+    - 登录用户："本月还可阅读 X 篇文章（10/月）"
+  - 样式：浅黄色背景 + 信息图标
+- **PaywallOverlay（付费墙弹窗）**：
+  - 触发时机：超出阅读限制时
+  - 显示内容：
+    - 免费用户："已达到免费阅读上限（3 篇）→ 登录后可阅读 10 篇/月"
+    - 登录用户："本月阅读额度已用完 → 下月 1 日重置"
+  - 操作按钮：
+    - 免费用户：[立即登录] [免费注册]
+    - 登录用户：[返回首页]
+  - 样式：居中卡片 + 模糊背景
+
+##### 4. 阅读历史统计
+- **用户阅读历史页面**（可选功能）：
+  - 路径：`/user/reading-history`
+  - 显示内容：
+    - 本月已读文章列表（标题、阅读时间）
+    - 本月阅读进度条（已读 X/10 篇）
+    - 重置倒计时（距离下月重置还有 X 天）
+  - 访问权限：仅登录用户可访问
+
+#### 🎨 ASCII 原型图
+
+##### 原型 1: 首页（Timeline）- 无变化
+```
+┌────────────────────────────────────────────────────────────────┐
+│  降噪  AI访谈精华策展          首页 | 标签 | 嘉宾 | 关于   [User]│
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  ═══ 今天 ═══════════════════════════════════════════         │
+│                                                                │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ [封面图]  AI的未来：与李开复的对话                        │  │
+│  │           嘉宾: 李开复  |  来源: 小宇宙                   │  │
+│  │           #AI #创业 #技术趋势                           │  │
+│  │           "未来十年,AI将改变所有行业..."                 │  │
+│  │           👁 245  💬 12                                  │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                                │
+│  ═══ 昨天 ═══════════════════════════════════════════         │
+│  [更多内容卡片...]                                             │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+
+🔍 说明: 首页 Timeline 完全不受影响，所有卡片正常显示
+```
+
+##### 原型 2: 详情页 - 免费用户 (剩余 2 篇额度)
+```
+┌────────────────────────────────────────────────────────────────┐
+│  降噪  AI访谈精华策展          首页 | 标签 | 嘉宾 | 关于   [登录]│
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  ╔════════════════════════════════════════════════════════╗  │
+│  ║ ℹ️ 您还可以免费阅读 2 篇完整文章  [登录] 后可阅读 10 篇/月 ║  │
+│  ╚════════════════════════════════════════════════════════╝  │
+│                                                                │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │                      [封面图]                           │  │
+│  │                                                          │  │
+│  │  AI的未来：与李开复的对话                                 │  │
+│  │  嘉宾: 李开复  |  来源: 小宇宙  |  发布: 2025-11-03       │  │
+│  │  #AI #创业 #技术趋势                                     │  │
+│  │                                                          │  │
+│  │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━       │  │
+│  │                                                          │  │
+│  │  ## 金句摘录                                            │  │
+│  │  > "未来十年,AI将改变所有行业的运作方式..."              │  │
+│  │  > "创业者必须拥抱AI,否则将被时代抛弃..."                │  │
+│  │                                                          │  │
+│  │  ## 内容摘要                                            │  │
+│  │  本期访谈中,李开复老师深入探讨了AI技术的发展趋势...       │  │
+│  │  [完整内容正常显示,无截断]                               │  │
+│  │  ...                                                    │  │
+│  │                                                          │  │
+│  │  👁 245  💬 12  ⏱ 约 8 分钟阅读                          │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+
+🔍 说明: 横幅提示剩余额度,内容完整显示,用户可正常阅读
+```
+
+##### 原型 3: 详情页 - 免费用户 (已达上限 3 篇)
+```
+┌────────────────────────────────────────────────────────────────┐
+│  降噪  AI访谈精华策展          首页 | 标签 | 嘉宾 | 关于   [登录]│
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │                      [封面图]                           │  │
+│  │                                                          │  │
+│  │  新能源汽车的革命：对话何小鹏                             │  │
+│  │  嘉宾: 何小鹏  |  来源: B站  |  发布: 2025-11-02          │  │
+│  │  #新能源 #汽车 #创业                                     │  │
+│  │                                                          │  │
+│  │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━       │  │
+│  │                                                          │  │
+│  │  ## 金句摘录                                            │  │
+│  │  > "智能汽车的核心不是电池,而是软件..."                  │  │
+│  │                                                          │  │
+│  │  ## 内容摘要                                            │  │
+│  │  本期访谈中,何小鹏分享了小鹏汽车在智能驾驶领域的探索...   │  │
+│  │  从最初的PPT造车到今天的交付量突破,小鹏汽车经历了...     │  │
+│  │  何小鹏认为,未来汽车行业的竞争将不再是传统的硬件...      │  │
+│  │  [截断到 500 字,后续内容模糊化]                          │  │
+│  │                                                          │  │
+│  │  ┌──────────────────────────────────────────────┐      │  │
+│  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │      │  │
+│  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │      │  │
+│  │  │                                              │      │  │
+│  │  │   🔒 免费阅读额度已用完                      │      │  │
+│  │  │                                              │      │  │
+│  │  │   您已阅读 3 篇完整文章（免费上限）           │      │  │
+│  │  │   登录后可继续阅读 10 篇/月                   │      │  │
+│  │  │                                              │      │  │
+│  │  │   ┌──────────┐  ┌──────────┐               │      │  │
+│  │  │   │ 立即登录 │  │ 免费注册 │               │      │  │
+│  │  │   └──────────┘  └──────────┘               │      │  │
+│  │  │                                              │      │  │
+│  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │      │  │
+│  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │      │  │
+│  │  └──────────────────────────────────────────────┘      │  │
+│  │                                                          │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+
+🔍 说明: 内容截断到 500 字,后续内容模糊化,中央显示 PaywallOverlay
+```
+
+##### 原型 4: 详情页 - 登录用户 (剩余 7 篇额度)
+```
+┌────────────────────────────────────────────────────────────────┐
+│  降噪  AI访谈精华策展          首页 | 标签 | 嘉宾 | 关于  📧 user@│
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  ╔════════════════════════════════════════════════════════╗  │
+│  ║ ✅ 本月还可阅读 7 篇文章（10 篇/月） | 下月 1 日重置     ║  │
+│  ╚════════════════════════════════════════════════════════╝  │
+│                                                                │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │                      [封面图]                           │  │
+│  │                                                          │  │
+│  │  元宇宙的未来：对话扎克伯格                               │  │
+│  │  嘉宾: 马克·扎克伯格  |  来源: YouTube  |  发布: 11-01    │  │
+│  │  #元宇宙 #VR #社交                                       │  │
+│  │                                                          │  │
+│  │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━       │  │
+│  │                                                          │  │
+│  │  ## 金句摘录                                            │  │
+│  │  > "元宇宙不是逃避现实,而是增强现实..."                  │  │
+│  │  > "VR技术的突破将在未来 3-5 年到来..."                 │  │
+│  │                                                          │  │
+│  │  ## 内容摘要                                            │  │
+│  │  扎克伯格在访谈中详细阐述了 Meta 在元宇宙领域的布局...   │  │
+│  │  [完整内容正常显示,无截断]                               │  │
+│  │  ...                                                    │  │
+│  │                                                          │  │
+│  │  👁 512  💬 28  ⏱ 约 12 分钟阅读                         │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+
+🔍 说明: 横幅显示剩余额度和重置时间,内容完整显示
+```
+
+##### 原型 5: 详情页 - 登录用户 (已达上限 10 篇)
+```
+┌────────────────────────────────────────────────────────────────┐
+│  降噪  AI访谈精华策展          首页 | 标签 | 嘉宾 | 关于  📧 user@│
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │                      [封面图]                           │  │
+│  │                                                          │  │
+│  │  区块链技术的真相：对话 Vitalik Buterin                   │  │
+│  │  嘉宾: Vitalik  |  来源: YouTube  |  发布: 2025-10-30     │  │
+│  │  #区块链 #以太坊 #Web3                                   │  │
+│  │                                                          │  │
+│  │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━       │  │
+│  │                                                          │  │
+│  │  ## 金句摘录                                            │  │
+│  │  > "区块链的意义在于去中心化,而非炒作..."                │  │
+│  │                                                          │  │
+│  │  ## 内容摘要                                            │  │
+│  │  Vitalik 在访谈中回顾了以太坊的创建初衷和发展历程...     │  │
+│  │  从最初的白皮书到今天的 PoS 共识机制,以太坊经历了...     │  │
+│  │  谈到当前加密货币市场的乱象,Vitalik 表达了他的担忧...    │  │
+│  │  [截断到 500 字,后续内容模糊化]                          │  │
+│  │                                                          │  │
+│  │  ┌──────────────────────────────────────────────┐      │  │
+│  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │      │  │
+│  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │      │  │
+│  │  │                                              │      │  │
+│  │  │   📊 本月阅读额度已用完                      │      │  │
+│  │  │                                              │      │  │
+│  │  │   您已阅读 10 篇完整文章（上限 10 篇/月）     │      │  │
+│  │  │   下月 1 日重置额度                          │      │  │
+│  │  │                                              │      │  │
+│  │  │   距离重置还有 12 天                         │      │  │
+│  │  │                                              │      │  │
+│  │  │   ┌──────────────┐                          │      │  │
+│  │  │   │  返回首页    │                          │      │  │
+│  │  │   └──────────────┘                          │      │  │
+│  │  │                                              │      │  │
+│  │  │   💡 小贴士: 可在 [阅读历史] 查看已读文章     │      │  │
+│  │  │                                              │      │  │
+│  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │      │  │
+│  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │      │  │
+│  │  └──────────────────────────────────────────────┘      │  │
+│  │                                                          │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+
+🔍 说明: 内容截断,PaywallOverlay 提示额度用完及重置时间
+```
+
+##### 原型 6: 用户阅读历史页面 (可选功能)
+```
+┌────────────────────────────────────────────────────────────────┐
+│  降噪  AI访谈精华策展          首页 | 标签 | 嘉宾 | 关于  📧 user@│
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │  我的阅读历史                                           │  │
+│  │                                                          │  │
+│  │  ═══ 本月阅读统计 ════════════════════════════         │  │
+│  │                                                          │  │
+│  │  已读文章: 7 / 10 篇                                    │  │
+│  │  ████████████████░░░░░░░░ 70%                           │  │
+│  │                                                          │  │
+│  │  距离额度重置还有: 12 天                                │  │
+│  │  重置日期: 2025-12-01                                   │  │
+│  │                                                          │  │
+│  │  ═══ 已读文章列表 ════════════════════════════         │  │
+│  │                                                          │  │
+│  │  ┌──────────────────────────────────────────────┐      │  │
+│  │  │ AI的未来：与李开复的对话                      │      │  │
+│  │  │ 嘉宾: 李开复  |  阅读时间: 2025-11-03 14:23   │      │  │
+│  │  │ [查看文章]                                   │      │  │
+│  │  └──────────────────────────────────────────────┘      │  │
+│  │                                                          │  │
+│  │  ┌──────────────────────────────────────────────┐      │  │
+│  │  │ 新能源汽车的革命：对话何小鹏                  │      │  │
+│  │  │ 嘉宾: 何小鹏  |  阅读时间: 2025-11-02 19:45   │      │  │
+│  │  │ [查看文章]                                   │      │  │
+│  │  └──────────────────────────────────────────────┘      │  │
+│  │                                                          │  │
+│  │  [更多已读文章...]                                      │  │
+│  │                                                          │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+
+🔍 说明: 可选功能,显示用户本月阅读统计和已读文章列表
+```
+
+#### 🏗️ 技术架构设计
+
+##### 数据库设计（Supabase）
+
+**新增表: content_monthly_views（登录用户）**
+```sql
+create table if not exists public.content_monthly_views (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  content_id text not null,
+  month_start date not null,
+  first_viewed_at timestamptz not null default now(),
+  last_viewed_at timestamptz not null default now(),
+  primary key (user_id, content_id, month_start)
+);
+
+create index if not exists idx_content_month_user on public.content_monthly_views (user_id, month_start);
+
+alter table public.content_monthly_views enable row level security;
+
+create policy "users can select own monthly views"
+  on public.content_monthly_views for select
+  using (auth.uid() = user_id);
+
+create policy "users can insert own monthly views"
+  on public.content_monthly_views for insert
+  with check (auth.uid() = user_id);
+```
+
+**可选表: anon_monthly_views（匿名用户）**
+```sql
+create table if not exists public.anon_monthly_views (
+  anon_id uuid not null,
+  content_id text not null,
+  month_start date not null,
+  first_viewed_at timestamptz not null default now(),
+  last_viewed_at timestamptz not null default now(),
+  primary key (anon_id, content_id, month_start)
+);
+
+create index if not exists idx_anon_month on public.anon_monthly_views (anon_id, month_start);
+```
+
+**客户端存储（可选，仅用于 UI 提示）**
+```text
+localStorage key: freeUserViewedContents
+用途：仅用于未登录态在前端展示“剩余额度”提示；服务端判定不依赖此值。
+```
+
+##### API 端点设计（合并与收敛）
+
+**新增/主用 API**:
+
+1. POST `/api/content/access`
+   - 功能: 统一“检查访问 + 去重计数 + 返回正文（完整/截断）”的原子操作（幂等）。
+   - 身份: 自动识别 Supabase 登录态；未登录则基于服务端生成/读取 `anon_id` Cookie。
+   - 请求体:
+     ```json
+     { "contentId": "recXXX123" }
+     ```
+   - 响应:
+     ```json
+     {
+       "hasAccess": true,
+       "isAuthenticated": true,
+       "viewCount": 3,
+       "maxViews": 10,
+       "resetDate": "2025-12-01",
+       "timezone": "Asia/Shanghai",
+       "content": "...根据权限返回完整或截断正文..."
+     }
+     ```
+
+2. GET `/api/user/reading-stats`
+   - 功能: 获取当前用户（登录）或匿名会话（可选）本月阅读统计与最近记录（需要 RLS/视图控制）。
+
+**弃用/替代**:
+- 废弃 `POST /api/content/track-view` 与 `GET /api/content/check-access/[id]`（功能已并入 `/api/content/access`）。
+- 原 `GET /api/contents/[id]` 仅用于非敏感用途（示例/后台），在生产可通过配置开关限制为“返回元数据或截断内容”。
+
+##### 文件结构
+
+**新增/调整文件清单**:
+```
+lib/
+├── identity.ts             # 生成/读取 anon_id（HttpOnly Cookie）与用户识别
+└── utils.ts                # 新增/整合 truncateMarkdown 等通用工具
+
+app/api/content/
+└── access/route.ts         # 统一“检查+计数+返回正文（完整/截断）”
+
+app/api/user/
+└── reading-stats/route.ts  # 用户阅读统计（登录）
+
+components/content/
+├── ContentAccessGate.tsx   # 仅做 UI 包装/提示（不再请求完整正文）
+├── PaywallOverlay.tsx      # 付费墙遮罩组件
+└── ViewLimitBanner.tsx     # 额度提示横幅
+
+app/content/[id]/page.tsx   # 【修改】RSC化，服务端拿 gated 内容再渲染
+app/user/
+└── reading-history/
+    └── page.tsx            # 【可选】阅读历史页面
+```
+
+**说明**:
+- `app/api/contents/[id]` 在生产环境需通过开关限制为“仅返回元数据或截断内容”；详细策略在上线检查清单中明确。
+
+##### 核心工具函数
+
+集中在 `lib/utils.ts`：
+- `truncateMarkdown(markdown: string, maxChars = 500)`：移除 Markdown 标记、代码块、链接等后按 Unicode 计数；优先在句末标点截断。
+- `calculateDaysUntilReset(resetDate, tz)`：基于业务时区计算倒计天数；与服务端保持一致。
+
+身份识别 `lib/identity.ts`：
+- `getViewerIdentity()`：读取 Supabase 用户或生成/读取 `anon_id`（HttpOnly Cookie）。
+
+##### React 组件设计
+
+**components/content/ContentAccessGate.tsx**:
+```typescript
+'use client';
+
+interface Props {
+  contentId: string;
+  fullContent: string;
+  children: React.ReactNode;
+}
+
+export default function ContentAccessGate({ contentId, fullContent, children }: Props) {
+  const [hasAccess, setHasAccess] = useState<boolean>(true);
+  const [viewStats, setViewStats] = useState<ViewStats | null>(null);
+
+  useEffect(() => {
+    checkAccess();
+  }, [contentId]);
+
+  async function checkAccess() {
+    // 调用 /api/content/access 获取 hasAccess、viewStats 与（可选）gated 内容
+  }
+
+  if (!hasAccess) {
+    const truncated = truncateMarkdown(fullContent, 500);
+    return (
+      <>
+        <div className="truncated-content">{truncated}</div>
+        <PaywallOverlay
+          isAuthenticated={viewStats.isAuthenticated}
+          viewCount={viewStats.viewCount}
+          maxViews={viewStats.maxViews}
+          resetDate={viewStats.resetDate}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <ViewLimitBanner viewStats={viewStats} />
+      {children}
+    </>
+  );
+}
+```
+
+**components/content/PaywallOverlay.tsx**:
+```typescript
+'use client';
+
+interface Props {
+  isAuthenticated: boolean;
+  viewCount: number;
+  maxViews: number;
+  resetDate?: string;
+}
+
+export default function PaywallOverlay({ isAuthenticated, viewCount, maxViews, resetDate }: Props) {
+  if (!isAuthenticated) {
+    return (
+      <div className="paywall-overlay">
+        <div className="paywall-card">
+          <h3>🔒 免费阅读额度已用完</h3>
+          <p>您已阅读 {viewCount} 篇完整文章（免费上限）</p>
+          <p>登录后可继续阅读 10 篇/月</p>
+          <div className="cta-buttons">
+            <Link href="/auth/login">立即登录</Link>
+            <Link href="/auth/signup">免费注册</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 登录用户超限的显示逻辑
+  const daysUntilReset = calculateDaysUntilReset(resetDate);
+
+  return (
+    <div className="paywall-overlay">
+      <div className="paywall-card">
+        <h3>📊 本月阅读额度已用完</h3>
+        <p>您已阅读 {viewCount} 篇完整文章（上限 {maxViews} 篇/月）</p>
+        <p>下月 1 日重置额度</p>
+        <p>距离重置还有 {daysUntilReset} 天</p>
+        <div className="cta-buttons">
+          <Link href="/">返回首页</Link>
+        </div>
+        <p className="tip">💡 小贴士: 可在 [阅读历史] 查看已读文章</p>
+      </div>
+    </div>
+  );
+}
+```
+
+**components/content/ViewLimitBanner.tsx**:
+```typescript
+'use client';
+
+interface Props {
+  viewStats: ViewStats;
+}
+
+export default function ViewLimitBanner({ viewStats }: Props) {
+  if (!viewStats) return null;
+
+  const { viewCount, maxViews, isAuthenticated, resetDate } = viewStats;
+  const remaining = maxViews - viewCount;
+
+  if (!isAuthenticated) {
+    return (
+      <div className="view-limit-banner info">
+        ℹ️ 您还可以免费阅读 {remaining} 篇完整文章
+        <Link href="/auth/login">登录</Link> 后可阅读 10 篇/月
+      </div>
+    );
+  }
+
+  return (
+    <div className="view-limit-banner success">
+      ✅ 本月还可阅读 {remaining} 篇文章（{maxViews} 篇/月）|
+      下月 1 日重置
+    </div>
+  );
+}
+```
+
+##### 月度重置与数据模型（SQL）
+
+**表结构（Supabase/Postgres）**:
+```sql
+-- 每月去重的完整阅读表（登录用户）
+create table if not exists public.content_monthly_views (
+  user_id uuid not null,
+  content_id text not null,
+  month_start date not null,
+  first_viewed_at timestamptz not null default now(),
+  last_viewed_at timestamptz not null default now(),
+  primary key (user_id, content_id, month_start)
+);
+
+-- 可选：匿名会话的每月阅读表（若采用 anon_id 方案）
+create table if not exists public.anon_monthly_views (
+  anon_id uuid not null,
+  content_id text not null,
+  month_start date not null,
+  first_viewed_at timestamptz not null default now(),
+  last_viewed_at timestamptz not null default now(),
+  primary key (anon_id, content_id, month_start)
+);
+
+-- 索引（加速统计与最近记录查询）
+create index if not exists idx_user_month on public.content_monthly_views (user_id, month_start);
+create index if not exists idx_anon_month on public.anon_monthly_views (anon_id, month_start);
+```
+
+**按业务时区计算本月窗口（示例：Asia/Shanghai）**:
+```sql
+-- 业务月起始日
+select (date_trunc('month', (now() at time zone 'Asia/Shanghai')))::date as month_start;
+
+-- 登录用户：统计本月完整阅读量
+select count(*) as view_count
+from public.content_monthly_views
+where user_id = $1 and month_start = $2;
+
+-- 幂等插入（本月首次完整阅读才计数）
+insert into public.content_monthly_views (user_id, content_id, month_start)
+values ($1, $2, $3)
+on conflict (user_id, content_id, month_start)
+do update set last_viewed_at = now()
+returning xmax = 0 as inserted; -- true 表示本次为首次插入
+```
+
+**说明**:
+- 按（月起始日，用户/匿名标识，内容）做主键，保证“当月不重复计数”，次月自动可重新计数。
+- 所有时间/窗口统一以业务时区计算，前后端一致。
+
+#### ✅ 实现清单（更新后）
+
+**数据库层**:
+- [ ] 在 Supabase 执行 DDL 创建 `content_monthly_views`（以及可选的 `anon_monthly_views`）
+- [ ] 配置 RLS：仅本人可写/读（匿名表视具体方案而定）
+- [ ] 添加索引：`(user_id, month_start)` / `(anon_id, month_start)`
+
+**API 层**:
+- [ ] 实现 `POST /api/content/access`（检查+计数+返回正文）
+- [ ] 实现 `GET /api/user/reading-stats`（登录用户）
+- [ ] 生产限制 `GET /api/contents/[id]` 输出（仅元数据或截断），或标记为内部端点
+
+**中间件/身份**:
+- [ ] 生成/读取 `anon_id`（HttpOnly Cookie），与 Supabase 会话并行识别
+
+**工具函数层**:
+- [ ] 在 `lib/utils.ts` 增加/整合 `truncateMarkdown`、`calculateDaysUntilReset`
+- [ ] 在 `lib/identity.ts` 增加 `getViewerIdentity`
+
+**组件层**:
+- [ ] 实现 `PaywallOverlay.tsx`、`ViewLimitBanner.tsx`
+- [ ] `ContentAccessGate.tsx` 仅做展示包装（不请求完整正文）
+
+**页面集成**:
+- [ ] 将 `app/content/[id]/page.tsx` RSC 化，服务器端调用 `/api/content/access`
+- [ ] （可选）创建 `app/user/reading-history/page.tsx`
+
+**测试验证**:
+- [ ] 测试免费用户 3 篇限制
+- [ ] 测试登录用户 10 篇/月限制
+- [ ] 测试内容截断和遮罩显示
+- [ ] 测试月度重置逻辑
+- [ ] 测试 localStorage 清除场景
+- [ ] 测试用户注册后额度转移
+- [ ] 验证不影响首页 Timeline 显示
+- [ ] 验证不影响 Feishu API 和缓存系统
+
+#### 🎯 测试场景
+
+##### 场景 1: 免费用户首次访问
+- 访问首页,所有内容卡片正常显示
+- 点击第 1 篇文章,完整显示 + 横幅提示"还可以免费阅读 2 篇"
+- 点击第 2 篇文章,完整显示 + 横幅提示"还可以免费阅读 1 篇"
+- 点击第 3 篇文章,完整显示 + 横幅提示"还可以免费阅读 0 篇"
+- 点击第 4 篇文章,截断到 500 字 + PaywallOverlay
+
+##### 场景 2: 免费用户清除缓存
+- 已阅读 3 篇文章,达到上限
+- 清除浏览器缓存
+- 刷新页面,计数器重置为 0
+- 可重新阅读 3 篇文章（技术限制,无法避免）
+
+##### 场景 3: 免费用户注册登录
+- 免费状态已阅读 3 篇文章
+- 注册并登录账号
+- 额度重置为 10 篇/月
+- 可继续阅读 7 篇新文章
+
+##### 场景 4: 登录用户月内使用
+- 登录用户本月已读 8 篇
+- 横幅显示"本月还可阅读 2 篇文章"
+- 阅读第 9 篇,横幅更新为"本月还可阅读 1 篇文章"
+- 阅读第 10 篇,横幅更新为"本月还可阅读 0 篇文章"
+- 尝试阅读第 11 篇,显示 PaywallOverlay
+
+##### 场景 5: 登录用户跨月重置
+- 11 月 30 日已读 10 篇,达到上限
+- 12 月 1 日 00:00 后访问
+- SQL 查询自动只计算 12 月的记录（0 篇）
+- 额度自动重置,可继续阅读 10 篇
+
+##### 场景 6: 重复查看同一篇文章
+- 用户查看文章 A,记录到数据库/localStorage
+- 用户再次查看文章 A
+- 不重复计数（数据库 UNIQUE 约束 + localStorage 数组去重）
+- 额度不减少
+
+#### 🚨 边界情况处理（更新后）
+
+1. localStorage 被禁用：
+   - 不依赖 localStorage 执行核心判定；UI 提示可降级隐藏剩余额度，但服务端判定仍有效。
+
+2. 数据库/网络异常：
+   - 默认策略：fail-soft —— 返回“截断正文 + 友好提示”，避免异常期间被批量绕过。
+
+3. SEO 友好性：
+   - 服务端通过 UA 白名单识别主流抓取器，返回完整内容；普通 UA 执行付费墙策略。
+
+4. **内容长度不足 500 字**:
+   - 直接显示完整内容,不截断
+   - 不显示 PaywallOverlay
+
+5. **用户快速连续点击多篇文章**:
+   - API 去重: 使用数据库 UNIQUE 约束
+   - 前端防抖: 避免重复请求
+
+#### 📊 影响分析
+
+**不受影响的模块**（零修改）:
+- ✅ 首页 Timeline 显示逻辑
+- ✅ 内容卡片渲染（TimelineCard）
+- ✅ Feishu API 数据获取
+- ✅ 三级缓存系统（L1/L2/L3）
+- ✅ SQLite 分析数据库（view/click 计数）
+- ✅ 数据转换层（transform.ts）
+- ✅ 标签和嘉宾聚合逻辑
+- ✅ 用户认证系统（V1.2.0）
+
+**受影响的模块**（轻量修改）:
+- 📝 内容详情页（`app/content/[id]/page.tsx`）
+  - 修改点: RSC 化并在服务端获取 gated 内容；客户端保留横幅/遮罩显示
+  - 影响范围: 仅影响详情页渲染，不影响 Feishu 数据获取与缓存
+  - 向下兼容: 原有 UI 逻辑保留，但数据来源改为 gated API
+
+**新增模块**（独立功能）:
+- ➕ 访问控制组件（ContentAccessGate 等）
+- ➕ 统一访问 API（`/api/content/access`）
+- ➕ 阅读统计 API（reading-stats）
+- ➕ 阅读历史页面（可选）
+
+#### 🎓 用户教育与引导
+
+**未登录用户引导**:
+- 第 1 篇文章: 顶部横幅柔和提示剩余额度
+- 第 3 篇文章: 横幅变为醒目样式,强调"还可以免费阅读 0 篇"
+- 第 4 篇文章: PaywallOverlay 中心化提示,明确引导注册/登录
+
+**登录用户引导**:
+- 前 8 篇: 顶部横幅常规显示剩余额度
+- 第 9-10 篇: 横幅变为警告样式,提示额度即将用完
+- 超限后: PaywallOverlay 提示下月重置时间
+- （可选）在用户菜单中增加"阅读历史"入口
+
+#### 🔐 安全与隐私
+
+**数据安全**:
+- RLS 策略: 用户只能查看/写入自己的 `content_monthly_views` 记录（匿名表视具体策略）
+- API 鉴权: 所有 API 使用 Supabase Auth 验证用户身份
+- SQL 注入防护: 使用参数化查询
+
+**隐私保护**:
+- 匿名用户: 仅保存 `anon_id` 与 `contentId` 的月度去重记录，不采集设备指纹
+- 登录用户: 仅保存与额度相关的阅读记录，不追踪设备指纹
+- 数据用途: 仅用于访问控制，不用于其他目的
+
+**合规性**:
+- localStorage 使用符合 GDPR 要求（非必要 Cookie）
+- 用户可随时清除本地存储数据
+- 数据库记录可通过账号删除完全清除
+
+---
 
 ### V1.2.0 - Supabase 用户认证系统
 **版本号**: 1.2.0

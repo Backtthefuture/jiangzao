@@ -96,6 +96,13 @@ export default function UserMenu() {
             <div className="px-4 py-2 text-sm text-gray-500 border-b">
               {user.email}
             </div>
+            <Link
+              href="/user/reading-history"
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => setMenuOpen(false)}
+            >
+              阅读历史
+            </Link>
             <button
               onClick={handleLogout}
               className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

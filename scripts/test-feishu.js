@@ -2,8 +2,8 @@
 const fs = require('fs');
 const path = require('path');
 
-// 读取.env.local
-const envPath = path.join(__dirname, '.env.local');
+// 读取项目根目录的 .env.local
+const envPath = path.join(__dirname, '..', '.env.local');
 const envContent = fs.readFileSync(envPath, 'utf-8');
 const envVars = {};
 envContent.split('\n').forEach(line => {

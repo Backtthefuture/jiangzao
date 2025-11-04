@@ -37,6 +37,7 @@ export async function updateSession(request: NextRequest) {
     !user &&
     !request.nextUrl.pathname.startsWith('/auth') &&
     !request.nextUrl.pathname.startsWith('/api/auth') &&
+    !request.nextUrl.pathname.startsWith('/api/content') &&
     request.nextUrl.pathname !== '/' &&
     !request.nextUrl.pathname.startsWith('/tags') &&
     !request.nextUrl.pathname.startsWith('/guests') &&

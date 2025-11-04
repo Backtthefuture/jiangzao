@@ -407,3 +407,139 @@ export function formatCharCount(count: number): string {
   const wanValue = count / 10000;
   return wanValue.toFixed(1).replace(/\.0$/, '') + '万';
 }
+
+/**
+ * 获取指定时区的当前日期对象。
+ */
+function getZonedDate(date: Date, timeZone: string): Date {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(date);
+
+  const values: Record<string, number> = {};
+  for (const part of parts) {
+    if (part.type === 'literal') {
+      continue;
+    }
+    values[part.type] = Number.parseInt(part.value, 10);
+  }
+
+  return new Date(
+    values.year,
+    (values.month ?? 1) - 1,
+    values.day ?? 1,
+    values.hour ?? 0,
+    values.minute ?? 0,
+    values.second ?? 0,
+  );
+}
+
+/**
+ * 获取指定时区的业务月起始日期 (YYYY-MM-01)。
+ */
+export function getBusinessMonthStartISO(
+  date: Date = new Date(),
+  timeZone = 'Asia/Shanghai',
+): string {
+  const zoned = getZonedDate(date, timeZone);
+  const year = zoned.getFullYear();
+  const month = zoned.getMonth();
+  const monthStart = new Date(year, month, 1);
+  const y = monthStart.getFullYear();
+  const m = String(monthStart.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}-01`;
+}
+
+/**
+ * 根据重置日期(YYYY-MM-DD)计算剩余天数。
+ */
+export function calculateDaysUntilReset(
+  resetDate: string | null | undefined,
+  timeZone = 'Asia/Shanghai',
+): number {
+  if (!resetDate) {
+    return 0;
+  }
+
+  const now = getZonedDate(new Date(), timeZone);
+  now.setHours(0, 0, 0, 0);
+
+  const [year, month, day] = resetDate.split('-').map((v) => Number.parseInt(v, 10));
+  if (!year || !month || !day) {
+    return 0;
+  }
+
+  const target = new Date(year, month - 1, day);
+  const diffTime = target.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays);
+}
+
+/**
+ * 获取下一个自然月的第一天 (YYYY-MM-DD)。
+ */
+export function getNextMonthResetDate(
+  date: Date = new Date(),
+  timeZone = 'Asia/Shanghai',
+): string {
+  const zoned = getZonedDate(date, timeZone);
+  const nextMonth = new Date(zoned.getFullYear(), zoned.getMonth() + 1, 1);
+  const y = nextMonth.getFullYear();
+  const m = String(nextMonth.getMonth() + 1).padStart(2, '0');
+  const d = String(nextMonth.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * 截断 Markdown 内容，返回纯文本。
+ */
+export function truncateMarkdown(markdown: string, maxChars = 500): string {
+  if (!markdown) {
+    return '';
+  }
+
+  let text = markdown;
+
+  // 移除代码块与行内代码
+  text = text.replace(/```[\s\S]*?```/g, '');
+  text = text.replace(/`[^`]+`/g, '');
+
+  // 移除图片与链接，保留链接文本
+  text = text.replace(/!\[[^\]]*\]\([^)]*\)/g, '');
+  text = text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+
+  // 移除 Markdown 样式
+  text = text.replace(/(\*\*|__)(.*?)\1/g, '$2');
+  text = text.replace(/(\*|_)(.*?)\1/g, '$2');
+  text = text.replace(/^>\s+/gm, '');
+  text = text.replace(/^#+\s+/gm, '');
+  text = text.replace(/^\s*[-*+]\s+/gm, '');
+  text = text.replace(/^\s*\d+\.\s+/gm, '');
+
+  // 压缩空白
+  text = text.replace(/\s+/g, ' ').trim();
+
+  if (text.length <= maxChars) {
+    return text;
+  }
+
+  const truncated = text.slice(0, maxChars);
+  const sentenceEndings = ['。', '！', '？', '.', '!', '?'];
+  let cutIndex = -1;
+  for (const ending of sentenceEndings) {
+    const index = truncated.lastIndexOf(ending);
+    if (index > cutIndex) {
+      cutIndex = index;
+    }
+  }
+
+  const finalText = cutIndex > maxChars * 0.5 ? truncated.slice(0, cutIndex + 1) : truncated;
+  return `${finalText.trim()}...`;
+}

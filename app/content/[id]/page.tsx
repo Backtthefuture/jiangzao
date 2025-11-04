@@ -1,213 +1,89 @@
-'use client';
+import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
+import ContentDetailClient from '@/components/content/ContentDetailClient';
+import { createClient } from '@/lib/supabase/server';
+import { resolveContentAccess } from '@/lib/access';
+import { ANON_COOKIE_MAX_AGE_SECONDS, ANON_COOKIE_NAME } from '@/lib/identity-constants';
+import type { ViewStats } from '@/components/content/ViewLimitBanner';
+import type { Content } from '@/lib/types';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import Image from 'next/image';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeHighlight from 'rehype-highlight';
-import rehypeSlug from 'rehype-slug';
-import QuoteBlock from '@/components/QuoteBlock';
-import TagBadge from '@/components/TagBadge';
-import TableOfContents from '@/components/TableOfContents';
-import { Content } from '@/lib/types';
-import {
-  deriveVideoEmbedMeta,
-  formatDate,
-  countMarkdownCharacters,
-  calculateReadingTime,
-} from '@/lib/utils';
+const FREE_USER_MAX_VIEWS = Number.parseInt(process.env.VIEW_LIMIT_FREE_MAX ?? '3', 10);
+const LOGGED_IN_USER_MAX_VIEWS = Number.parseInt(process.env.VIEW_LIMIT_AUTH_MAX ?? '10', 10);
+const BUSINESS_TIMEZONE = process.env.VIEW_LIMIT_TIMEZONE ?? 'Asia/Shanghai';
+const FEATURE_ENABLED = process.env.VIEW_LIMIT_V122_ENABLED !== 'false';
 
-export default function ContentDetail() {
-  const params = useParams();
-  const router = useRouter();
-  const [content, setContent] = useState<Content | null>(null);
-  const [loading, setLoading] = useState(true);
-  const contentRef = useRef<HTMLDivElement>(null);
+interface PageProps {
+  params: { id: string };
+}
 
-  const loadContent = useCallback(async () => {
-    try {
-      setLoading(true);
+export default async function ContentDetailPage({ params }: PageProps) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-      // 记录浏览量
-      await fetch('/api/analytics/view', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recordId: params.id }),
-      });
+  const cookieStore = await cookies();
+  const anonCookie = cookieStore.get(ANON_COOKIE_NAME)?.value ?? null;
 
-      // 获取内容
-      const response = await fetch(`/api/contents/${params.id}`);
-      if (!response.ok) {
-        throw new Error('Content not found');
-      }
-      const data = await response.json();
-      setContent(data);
-    } catch (error) {
-      console.error('Failed to load content:', error);
-      router.push('/');
-    } finally {
-      setLoading(false);
-    }
-  }, [params.id, router]);
+  let result;
 
-  useEffect(() => {
-    void loadContent();
-  }, [loadContent]);
-
-  // 内容加载完成后滚动到顶部
-  useEffect(() => {
-    if (!loading && content) {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-    }
-  }, [loading, content]);
-
-  const handleClickOriginalLink = async () => {
-    if (!content) return;
-
-    // 记录点击量
-    await fetch('/api/analytics/click', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recordId: content.id }),
+  try {
+    result = await resolveContentAccess({
+      contentId: params.id,
+      supabase,
+      userId: user?.id ?? null,
+      anonId: user ? null : anonCookie,
+      timezone: BUSINESS_TIMEZONE,
+      freeUserMaxViews: FREE_USER_MAX_VIEWS,
+      authUserMaxViews: LOGGED_IN_USER_MAX_VIEWS,
     });
-
-    // 打开原链接
-    window.open(content.originalLink, '_blank');
-  };
-
-  // 计算阅读时长 - 必须在早期返回之前调用
-  const charCount = useMemo(
-    () => content ? countMarkdownCharacters(content.content) : 0,
-    [content],
-  );
-  const readingTime = useMemo(
-    () => calculateReadingTime(charCount),
-    [charCount],
-  );
-
-  const getSourceIcon = (source: string) => {
-    switch (source) {
-      case 'xiaoyuzhou':
-        return '📻';
-      case 'bilibili':
-        return '📺';
-      case 'youtube':
-        return '🎥';
-      default:
-        return '🔗';
+  } catch (error) {
+    if (error instanceof Error && error.message === 'CONTENT_NOT_FOUND') {
+      notFound();
     }
-  };
-
-  const getSourceName = (source: string) => {
-    switch (source) {
-      case 'xiaoyuzhou':
-        return '小宇宙';
-      case 'bilibili':
-        return 'B站';
-      case 'youtube':
-        return 'YouTube';
-      default:
-        return source;
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center text-gray-500">加载中...</div>
-      </div>
-    );
+    throw error;
   }
 
-  if (!content) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center text-gray-500">内容不存在</div>
-      </div>
-    );
-  }
+  // 在功能关闭时直接放行
+  const hasAccess = FEATURE_ENABLED ? result.hasAccess : true;
+  const isTruncated = FEATURE_ENABLED ? !result.hasAccess : false;
 
-  const videoMeta = deriveVideoEmbedMeta(content.originalLink, content.source);
+  const contentPayload: Content = {
+    ...result.content,
+    content: hasAccess ? result.content.content : result.truncatedContent,
+  };
+
+  const viewStats: ViewStats | null = FEATURE_ENABLED
+    ? {
+        isAuthenticated: result.isAuthenticated,
+        viewCount: result.viewCount,
+        maxViews: result.maxViews,
+        remainingViews: result.remainingViews,
+        resetDate: result.resetDate,
+        daysUntilReset: result.daysUntilReset,
+      }
+    : null;
+
+  if (!result.isAuthenticated && result.shouldSetAnonCookie && result.anonId) {
+    const secure = process.env.NODE_ENV === 'production';
+    cookieStore.set({
+      name: ANON_COOKIE_NAME,
+      value: result.anonId,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure,
+      path: '/',
+      maxAge: ANON_COOKIE_MAX_AGE_SECONDS,
+    });
+  }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      {/* 双栏布局容器 */}
-      <div className="flex gap-8">
-        {/* 左侧: 目录导航 (桌面端显示) */}
-        <TableOfContents contentRef={contentRef} />
-
-        {/* 右侧: 原内容区域 */}
-        <div className="flex-1 min-w-0">
-          {/* Title */}
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {content.title}
-          </h1>
-
-          {/* Meta Info */}
-          <div className="flex items-center text-sm text-gray-500 mb-6 space-x-4 flex-wrap">
-            <span>👤 {content.guest}</span>
-            <span>|</span>
-            <span>📅 {formatDate(content.publishedAt)}</span>
-            <span>|</span>
-            <span>⏱️ {readingTime}分钟阅读</span>
-            <span>|</span>
-            <span>{getSourceIcon(content.source)} {getSourceName(content.source)}</span>
-            {content.viewCount !== undefined && (
-              <>
-                <span>|</span>
-                <span>👁️ {content.viewCount} 次阅读</span>
-              </>
-            )}
-          </div>
-
-          {/* Tags */}
-          <div className="flex flex-wrap gap-2 mb-8">
-            {content.tags.map((tag) => (
-              <TagBadge key={tag} tag={tag} />
-            ))}
-          </div>
-
-          {/* Quotes */}
-          <QuoteBlock quotes={content.quotes} />
-
-          {/* Divider */}
-          <hr className="my-8" />
-
-          {/* Content */}
-          <div ref={contentRef} className="prose prose-lg max-w-none">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeHighlight, rehypeSlug]}
-            >
-              {content.content}
-            </ReactMarkdown>
-          </div>
-
-          {/* CTA Card */}
-          <div className="mt-12 bg-[#007AFF] rounded-2xl p-8 shadow-lg">
-            <div className="text-center">
-              <h3 className="text-2xl font-bold text-white mb-3">
-                想了解更多?
-              </h3>
-              <p className="text-white/90 mb-6">
-                查看原始访谈内容,获取完整的观点和讨论
-              </p>
-              <button
-                onClick={handleClickOriginalLink}
-                className="px-8 py-4 bg-white text-[#007AFF] text-lg font-semibold rounded-xl hover:bg-gray-50 hover:scale-105 transition-all duration-300 shadow-md"
-              >
-                🎧 查看完整访谈
-              </button>
-              {content.clickCount !== undefined && (
-                <div className="mt-6 text-white/80 text-sm">
-                  🔗 已有 {content.clickCount} 人跳转查看
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <ContentDetailClient
+      content={contentPayload}
+      viewStats={viewStats}
+      hasAccess={hasAccess}
+      isTruncated={isTruncated}
+      timezone={BUSINESS_TIMEZONE}
+    />
   );
 }
