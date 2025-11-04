@@ -1,19 +1,35 @@
 // SQLite数据库操作
+// V1.4.3: Vercel 部署支持 - 可选禁用 SQLite
 
 import Database from 'better-sqlite3';
 import path from 'path';
+
+// 检查是否启用分析功能
+// 在 Vercel 环境下默认禁用 SQLite (因为无法持久化文件)
+const ANALYTICS_ENABLED = process.env.ENABLE_ANALYTICS === 'true';
 
 let db: Database.Database | null = null;
 
 /**
  * 获取数据库实例
  */
-function getDB(): Database.Database {
+function getDB(): Database.Database | null {
+  // 如果分析功能被禁用,返回 null
+  if (!ANALYTICS_ENABLED) {
+    return null;
+  }
+
   if (!db) {
-    const dbPath = path.join(process.cwd(), 'data', 'analytics.db');
-    db = new Database(dbPath);
-    db.pragma('journal_mode = WAL'); // 启用WAL模式，支持并发
-    initDB();
+    try {
+      const dbPath = path.join(process.cwd(), 'data', 'analytics.db');
+      db = new Database(dbPath);
+      db.pragma('journal_mode = WAL'); // 启用WAL模式，支持并发
+      initDB();
+    } catch (error) {
+      console.warn('[DB] Failed to initialize SQLite database:', error);
+      console.warn('[DB] Analytics will be disabled. Set ENABLE_ANALYTICS=true to enable.');
+      return null;
+    }
   }
   return db;
 }
@@ -23,6 +39,7 @@ function getDB(): Database.Database {
  */
 export function initDB(): void {
   const db = getDB();
+  if (!db) return; // 分析功能禁用时跳过
 
   // 创建analytics表
   db.exec(`
@@ -48,6 +65,11 @@ export function initDB(): void {
 export function trackView(recordId: string): number {
   const db = getDB();
 
+  // 分析功能禁用时返回模拟数据
+  if (!db) {
+    return 0; // 返回 0 表示未统计
+  }
+
   const stmt = db.prepare(`
     INSERT INTO analytics (record_id, view_count, click_count)
     VALUES (?, 1, 0)
@@ -71,6 +93,11 @@ export function trackView(recordId: string): number {
  */
 export function trackClick(recordId: string): number {
   const db = getDB();
+
+  // 分析功能禁用时返回模拟数据
+  if (!db) {
+    return 0; // 返回 0 表示未统计
+  }
 
   const stmt = db.prepare(`
     INSERT INTO analytics (record_id, view_count, click_count)
@@ -99,6 +126,11 @@ export function getAnalytics(recordId: string): {
 } | null {
   const db = getDB();
 
+  // 分析功能禁用时返回 null
+  if (!db) {
+    return null;
+  }
+
   const row = db
     .prepare('SELECT view_count, click_count FROM analytics WHERE record_id = ?')
     .get(recordId) as
@@ -126,6 +158,11 @@ export function getBatchAnalytics(
   }
 
   const db = getDB();
+
+  // 分析功能禁用时返回空 Map
+  if (!db) {
+    return new Map();
+  }
 
   const placeholders = recordIds.map(() => '?').join(',');
   const stmt = db.prepare(
@@ -159,6 +196,15 @@ export function getSummaryAnalytics(): {
   totalRecords: number;
 } {
   const db = getDB();
+
+  // 分析功能禁用时返回零值
+  if (!db) {
+    return {
+      totalViews: 0,
+      totalClicks: 0,
+      totalRecords: 0,
+    };
+  }
 
   const row = db
     .prepare(
