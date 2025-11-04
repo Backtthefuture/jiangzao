@@ -7,7 +7,8 @@ import {
   getNextMonthResetDate,
   truncateMarkdown,
 } from '@/lib/utils';
-import type { Content } from '@/lib/types';
+import { getMembershipStatus, hasActiveMembership } from '@/lib/membership';
+import type { Content, MembershipStatus } from '@/lib/types';
 
 interface ResolveAccessOptions {
   contentId: string;
@@ -24,10 +25,12 @@ export interface ContentAccessResult {
   content: Content;
   hasAccess: boolean;
   isAuthenticated: boolean;
+  isMember: boolean; // V1.3.0: 是否为会员
+  membershipStatus: MembershipStatus | null; // V1.3.0: 会员状态
   hasViewedThisContent: boolean;
   viewCount: number;
-  maxViews: number;
-  remainingViews: number;
+  maxViews: number; // -1 表示无限 (会员)
+  remainingViews: number; // -1 表示无限 (会员)
   resetDate: string;
   daysUntilReset: number;
   timezone: string;
@@ -59,7 +62,19 @@ export async function resolveContentAccess(options: ResolveAccessOptions): Promi
   const nowIso = now.toISOString();
 
   const isAuthenticated = Boolean(userId);
-  const maxViews = isAuthenticated ? authUserMaxViews : freeUserMaxViews;
+
+  // V1.3.0: 检查会员状态
+  let membershipStatus: MembershipStatus | null = null;
+  let isMember = false;
+
+  if (isAuthenticated && userId) {
+    membershipStatus = await getMembershipStatus(supabase, userId);
+    isMember = membershipStatus.isActive;
+  }
+
+  // 会员用户: 无限阅读 (maxViews = -1)
+  // 非会员: 根据登录状态决定
+  const maxViews = isMember ? -1 : (isAuthenticated ? authUserMaxViews : freeUserMaxViews);
   let viewCount = 0;
   let remainingViews = maxViews;
   let hasAccess = false;
@@ -68,48 +83,96 @@ export async function resolveContentAccess(options: ResolveAccessOptions): Promi
   let shouldSetAnonCookie = false;
 
   if (isAuthenticated && userId) {
-    const { count: monthlyCount = 0 } = await supabase
-      .from('content_monthly_views')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('month_start', monthStart);
-
-    viewCount = monthlyCount ?? 0;
-    remainingViews = Math.max(0, maxViews - viewCount);
-
-    const { data: existingRow } = await supabase
-      .from('content_monthly_views')
-      .select('user_id')
-      .eq('user_id', userId)
-      .eq('content_id', contentId)
-      .eq('month_start', monthStart)
-      .maybeSingle();
-
-    hasViewedThisContent = Boolean(existingRow);
-
-    if (hasViewedThisContent) {
+    // V1.3.0: 会员用户直接授予访问权限,无需检查月度限制
+    if (isMember) {
       hasAccess = true;
-      await supabase
+      remainingViews = -1; // 无限
+
+      // 仍然记录会员的阅读历史 (用于统计)
+      const { data: existingRow } = await supabase
         .from('content_monthly_views')
-        .update({ last_viewed_at: nowIso })
+        .select('user_id')
         .eq('user_id', userId)
         .eq('content_id', contentId)
-        .eq('month_start', monthStart);
-    } else if (viewCount < maxViews) {
-      const { error } = await supabase
-        .from('content_monthly_views')
-        .insert({
-          user_id: userId,
-          content_id: contentId,
-          month_start: monthStart,
-          first_viewed_at: nowIso,
-          last_viewed_at: nowIso,
-        });
+        .eq('month_start', monthStart)
+        .maybeSingle();
 
-      if (!error) {
+      hasViewedThisContent = Boolean(existingRow);
+
+      if (hasViewedThisContent) {
+        // 更新最后阅读时间
+        await supabase
+          .from('content_monthly_views')
+          .update({ last_viewed_at: nowIso })
+          .eq('user_id', userId)
+          .eq('content_id', contentId)
+          .eq('month_start', monthStart);
+      } else {
+        // 插入阅读记录
+        await supabase
+          .from('content_monthly_views')
+          .insert({
+            user_id: userId,
+            content_id: contentId,
+            month_start: monthStart,
+            first_viewed_at: nowIso,
+            last_viewed_at: nowIso,
+          });
+      }
+
+      // 获取会员的月度阅读数 (仅用于统计展示)
+      const { count: monthlyCount = 0 } = await supabase
+        .from('content_monthly_views')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('month_start', monthStart);
+
+      viewCount = monthlyCount ?? 0;
+    } else {
+      // 非会员登录用户: 检查月度限制
+      const { count: monthlyCount = 0 } = await supabase
+        .from('content_monthly_views')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('month_start', monthStart);
+
+      viewCount = monthlyCount ?? 0;
+      remainingViews = Math.max(0, maxViews - viewCount);
+
+      const { data: existingRow } = await supabase
+        .from('content_monthly_views')
+        .select('user_id')
+        .eq('user_id', userId)
+        .eq('content_id', contentId)
+        .eq('month_start', monthStart)
+        .maybeSingle();
+
+      hasViewedThisContent = Boolean(existingRow);
+
+      if (hasViewedThisContent) {
         hasAccess = true;
-        viewCount += 1;
-        remainingViews = Math.max(0, maxViews - viewCount);
+        await supabase
+          .from('content_monthly_views')
+          .update({ last_viewed_at: nowIso })
+          .eq('user_id', userId)
+          .eq('content_id', contentId)
+          .eq('month_start', monthStart);
+      } else if (viewCount < maxViews) {
+        const { error } = await supabase
+          .from('content_monthly_views')
+          .insert({
+            user_id: userId,
+            content_id: contentId,
+            month_start: monthStart,
+            first_viewed_at: nowIso,
+            last_viewed_at: nowIso,
+          });
+
+        if (!error) {
+          hasAccess = true;
+          viewCount += 1;
+          remainingViews = Math.max(0, maxViews - viewCount);
+        }
       }
     }
   } else {
@@ -172,6 +235,8 @@ export async function resolveContentAccess(options: ResolveAccessOptions): Promi
     content,
     hasAccess,
     isAuthenticated,
+    isMember, // V1.3.0
+    membershipStatus, // V1.3.0
     hasViewedThisContent,
     viewCount,
     maxViews,

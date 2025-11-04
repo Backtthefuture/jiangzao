@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import MembershipBadge from '@/components/membership/MembershipBadge';
 
 interface User {
   id: string;
@@ -83,7 +84,10 @@ export default function UserMenu() {
         <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
           {user.email[0].toUpperCase()}
         </div>
-        <span className="text-sm text-gray-700 hidden md:inline">{user.email}</span>
+        <div className="hidden md:flex items-center gap-2">
+          <span className="text-sm text-gray-700">{user.email}</span>
+          <MembershipBadge mode="compact" />
+        </div>
       </button>
 
       {menuOpen && (
@@ -92,10 +96,18 @@ export default function UserMenu() {
             className="fixed inset-0 z-10"
             onClick={() => setMenuOpen(false)}
           ></div>
-          <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20">
-            <div className="px-4 py-2 text-sm text-gray-500 border-b">
-              {user.email}
+          <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-20">
+            <div className="px-4 py-3 border-b">
+              <div className="text-sm text-gray-500 mb-1">{user.email}</div>
+              <MembershipBadge mode="full" />
             </div>
+            <Link
+              href="/user/membership"
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => setMenuOpen(false)}
+            >
+              会员中心
+            </Link>
             <Link
               href="/user/reading-history"
               className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -103,9 +115,16 @@ export default function UserMenu() {
             >
               阅读历史
             </Link>
+            <Link
+              href="/pricing"
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => setMenuOpen(false)}
+            >
+              升级会员
+            </Link>
             <button
               onClick={handleLogout}
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 border-t"
             >
               退出登录
             </button>

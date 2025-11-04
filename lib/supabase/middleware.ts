@@ -41,7 +41,8 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname !== '/' &&
     !request.nextUrl.pathname.startsWith('/tags') &&
     !request.nextUrl.pathname.startsWith('/guests') &&
-    !request.nextUrl.pathname.startsWith('/content')
+    !request.nextUrl.pathname.startsWith('/content') &&
+    request.nextUrl.pathname !== '/pricing' // V1.4.0: 定价页公开访问
   ) {
     // No user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
