@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { getUserReadingStats } from '@/lib/readingHistory';
 
+// Force dynamic rendering (uses cookies)
+export const dynamic = 'force-dynamic';
+
 const LOGGED_IN_USER_MAX_VIEWS = Number.parseInt(process.env.VIEW_LIMIT_AUTH_MAX ?? '10', 10);
 const BUSINESS_TIMEZONE = process.env.VIEW_LIMIT_TIMEZONE ?? 'Asia/Shanghai';
 

@@ -4,6 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getContentsWithImages, getContentsByTag, getContentsByGuest } from '@/lib/transform';
 import { getBatchAnalytics } from '@/lib/db';
 
+// Force dynamic rendering (uses searchParams)
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   console.log('\n📥 GET /api/contents - Request received');

@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
+// Force dynamic rendering (uses cookies)
+export const dynamic = 'force-dynamic';
+
 /**
  * 查询订单状态
  *

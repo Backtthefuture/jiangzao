@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { getMembershipStatus } from '@/lib/membership';
 
+// Force dynamic rendering (uses cookies)
+export const dynamic = 'force-dynamic';
+
 /**
  * 获取用户会员信息
  *

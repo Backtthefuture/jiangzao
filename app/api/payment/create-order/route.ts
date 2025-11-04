@@ -12,6 +12,9 @@ import { MEMBERSHIP_PLANS, isPurchasableTier } from '@/lib/membership';
 import { validateCoupon, calculateDiscountedPrice, calculateDiscountAmount } from '@/lib/bargain';
 import type { MembershipTier } from '@/lib/types';
 
+// Force dynamic rendering (uses cookies)
+export const dynamic = 'force-dynamic';
+
 /**
  * 创建支付订单
  *

@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
+// Force dynamic rendering (uses cookies)
+export const dynamic = 'force-dynamic';
+
 const FREE_USER_MAX_VIEWS = 3;
 const LOGGED_IN_USER_MAX_VIEWS = 10;
 

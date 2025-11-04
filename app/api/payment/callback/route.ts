@@ -11,6 +11,9 @@ import { activateOrRenewMembership } from '@/lib/membership';
 import { markCouponAsUsed } from '@/lib/bargain'; // V1.4.0: 砍价优惠券
 import type { ZPayCallbackParams } from '@/lib/zpay';
 
+// Force dynamic rendering (uses cookies)
+export const dynamic = 'force-dynamic';
+
 /**
  * Z-Pay 支付回调接口
  *

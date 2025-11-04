@@ -253,7 +253,15 @@ npm run build
 npm install
 ```
 
-### 问题2: 运行时错误 - "Cannot find module 'better-sqlite3'"
+### 问题2: 构建错误 - "Dynamic server usage: Route couldn't be rendered statically"
+
+**原因**: API 路由使用了动态特性（cookies, searchParams）但没有标记为动态渲染
+
+**解决方案**: V1.4.3 已修复
+- 所有使用 cookies 或 searchParams 的路由已添加 `export const dynamic = 'force-dynamic'`
+- 如果你在早期版本遇到此问题，请更新到 V1.4.3 或更高版本
+
+### 问题3: 运行时错误 - "Cannot find module 'better-sqlite3'"
 
 **原因**: `ENABLE_ANALYTICS` 环境变量未设置
 
@@ -263,7 +271,7 @@ npm install
 ENABLE_ANALYTICS=false
 ```
 
-### 问题3: 登录后跳转失败
+### 问题4: 登录后跳转失败
 
 **原因**: Supabase Redirect URLs 未正确配置
 
@@ -272,7 +280,7 @@ ENABLE_ANALYTICS=false
 2. 确保添加了所有回调 URL
 3. 确保 `NEXT_PUBLIC_SITE_URL` 与 Vercel 域名一致
 
-### 问题4: 支付回调失败
+### 问题5: 支付回调失败
 
 **原因**: Z-Pay 回调 URL 未更新
 
@@ -281,7 +289,7 @@ ENABLE_ANALYTICS=false
 2. 确保 `ZPAY_CALLBACK_URL` 环境变量正确
 3. 查看 Vercel Functions 日志 (Dashboard → Functions → Logs)
 
-### 问题5: 图片加载失败
+### 问题6: 图片加载失败
 
 **原因**: Feishu 图片 URL 过期 (24小时过期)
 
@@ -358,5 +366,5 @@ Git Push → GitHub → Vercel 自动构建 → 自动部署
 
 ---
 
-**最后更新**: 2025-11-04
-**版本**: V1.4.3 (Vercel 部署支持)
+**最后更新**: 2025-11-05
+**版本**: V1.4.3 (Vercel 部署支持 - 修复动态路由问题)

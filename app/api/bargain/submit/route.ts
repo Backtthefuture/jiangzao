@@ -31,6 +31,9 @@ import {
 } from '@/lib/prompts/bargain';
 import type { BargainSubmitRequest, BargainSubmitResponse } from '@/lib/types';
 
+// Force dynamic rendering (uses cookies)
+export const dynamic = 'force-dynamic';
+
 // 限速：每个用户/IP 60秒内只能提交一次
 const rateLimitMap = new Map<string, number>();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 60秒

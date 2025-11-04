@@ -37,18 +37,33 @@ export async function getAccessToken(): Promise<string> {
 
   console.log('🔄 Fetching new access token...');
 
+  // Validate environment variables
+  const appId = process.env.FEISHU_APP_ID;
+  const appSecret = process.env.FEISHU_APP_SECRET;
+
+  if (!appId || !appSecret) {
+    const missing = [];
+    if (!appId) missing.push('FEISHU_APP_ID');
+    if (!appSecret) missing.push('FEISHU_APP_SECRET');
+    console.error('❌ Missing Feishu environment variables:', missing.join(', '));
+    throw new Error(`Missing Feishu credentials: ${missing.join(', ')}`);
+  }
+
+  console.log('[Feishu] Using app_id:', appId?.substring(0, 8) + '...');
+
   try {
     const response = await axiosInstance.post(
       'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal',
       {
-        app_id: process.env.FEISHU_APP_ID,
-        app_secret: process.env.FEISHU_APP_SECRET,
+        app_id: appId,
+        app_secret: appSecret,
       }
     );
 
     const data = response.data;
 
     if (data.code !== 0) {
+      console.error('[Feishu] API error response:', JSON.stringify(data));
       throw new Error(`Feishu API error: ${data.msg}`);
     }
 
@@ -62,6 +77,10 @@ export async function getAccessToken(): Promise<string> {
     return data.tenant_access_token;
   } catch (error: any) {
     console.error('❌ Failed to get access token:', error.message);
+    if (error.response) {
+      console.error('[Feishu] Error response data:', error.response.data);
+      console.error('[Feishu] Error response status:', error.response.status);
+    }
     throw new Error(`Failed to get access token: ${error.message}`);
   }
 }

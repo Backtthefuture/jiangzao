@@ -7,6 +7,9 @@ import { resolveContentAccess } from '@/lib/access';
 import type { ContentAccessResult } from '@/lib/access';
 import type { Content } from '@/lib/types';
 
+// Force dynamic rendering (uses cookies)
+export const dynamic = 'force-dynamic';
+
 const FREE_USER_MAX_VIEWS = Number.parseInt(process.env.VIEW_LIMIT_FREE_MAX ?? '3', 10);
 const LOGGED_IN_USER_MAX_VIEWS = Number.parseInt(process.env.VIEW_LIMIT_AUTH_MAX ?? '10', 10);
 const BUSINESS_TIMEZONE = process.env.VIEW_LIMIT_TIMEZONE ?? 'Asia/Shanghai';

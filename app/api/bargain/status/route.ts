@@ -16,6 +16,9 @@ import { createClient } from '@/lib/supabase/server';
 import { canUserBargain } from '@/lib/bargain';
 import type { BargainStatusResponse } from '@/lib/types';
 
+// Force dynamic rendering (uses cookies)
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // 创建 Supabase 客户端
