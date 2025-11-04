@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import MembershipBadge from '@/components/membership/MembershipBadge';
+import { createClient } from '@/lib/supabase/client'; // V1.4.2: 新增导入
 
 interface User {
   id: string;
@@ -17,8 +18,43 @@ export default function UserMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
+    // V1.4.2: 创建 Supabase 客户端
+    const supabase = createClient();
+
+    // 1. 初始检查用户状态（保持向后兼容）
     checkUser();
-  }, []);
+
+    // 2. V1.4.2 新增: 订阅认证状态变化
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[UserMenu] Auth state changed:', event);
+
+      if (event === 'SIGNED_IN' && session) {
+        // 用户登录成功 → 立即更新 UI
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+        });
+        setLoading(false);
+      } else if (event === 'SIGNED_OUT') {
+        // 用户登出 → 立即清除 UI
+        setUser(null);
+        setLoading(false);
+      } else if (event === 'TOKEN_REFRESHED' && session) {
+        // Token 刷新 → 确保用户状态正确
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+        });
+      }
+    });
+
+    // 3. V1.4.2 新增: 组件卸载时取消订阅（防止内存泄漏）
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []); // 依赖数组保持为空，监听器会持续工作
 
   const checkUser = async () => {
     try {
@@ -36,15 +72,21 @@ export default function UserMenu() {
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-      });
+      // V1.4.2: 改用客户端 Supabase SDK 登出
+      // 这样会触发 onAuthStateChange 的 SIGNED_OUT 事件,UI 会立即更新
+      const supabase = createClient();
 
-      if (response.ok) {
-        setUser(null);
-        router.push('/');
-        router.refresh();
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.error('Logout failed:', error);
+        return;
       }
+
+      // Logout successful - Supabase will automatically trigger SIGNED_OUT event
+      console.log('[UserMenu] Logout successful, redirecting...');
+      router.push('/');
+      router.refresh();
     } catch (error) {
       console.error('Logout failed:', error);
     }

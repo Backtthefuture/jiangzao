@@ -61,6 +61,11 @@ export type MembershipTier = 'free' | 'monthly' | 'yearly' | 'lifetime';
 
 /**
  * 支付方式
+ *
+ * V1.4.1 重要说明：
+ * - 'alipay' 已停用（商户未开通支付宝渠道）
+ * - 新订单仅支持 'wxpay' (微信支付)
+ * - 保留 'alipay' 类型定义仅用于历史数据兼容（数据库查询、回调处理）
  */
 export type PaymentMethod = 'alipay' | 'wxpay';
 

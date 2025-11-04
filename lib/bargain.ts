@@ -11,7 +11,6 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { createServerClient } from '@/lib/supabase/server';
 
 // ============================================================================
 // 类型定义

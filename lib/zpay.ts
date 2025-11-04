@@ -27,9 +27,14 @@ export const ZPAY_ENDPOINTS = {
 
 /**
  * 支付方式
+ *
+ * V1.4.1 重要说明：
+ * - ALIPAY 已停用（商户未开通支付宝渠道）
+ * - 新订单仅支持 WXPAY (微信支付)
+ * - 保留 ALIPAY 常量定义仅用于历史数据兼容
  */
 export const PAYMENT_METHODS = {
-  ALIPAY: 'alipay',
+  ALIPAY: 'alipay', // 已停用 - 商户未开通支付宝渠道，新订单禁止使用
   WXPAY: 'wxpay',
 } as const;
 

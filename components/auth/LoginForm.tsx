@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client'; // V1.4.2: 使用客户端 Supabase
 
 export default function LoginForm() {
   const router = useRouter();
@@ -23,21 +24,32 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      // V1.4.2: 改用客户端 Supabase SDK 登录
+      // 这样会触发 onAuthStateChange 事件,UserMenu 会立即更新
+      const supabase = createClient();
+
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const data = await response.json();
+      if (signInError) {
+        console.error('Login error:', signInError);
 
-      if (!response.ok) {
-        throw new Error(data.error || '登录失败');
+        // Provide user-friendly error messages
+        if (signInError.message.includes('Invalid login credentials')) {
+          throw new Error('邮箱或密码错误');
+        }
+
+        if (signInError.message.includes('Email not confirmed')) {
+          throw new Error('请先验证您的邮箱');
+        }
+
+        throw new Error(signInError.message || '登录失败');
       }
 
-      // Login successful
+      // Login successful - Supabase will automatically trigger SIGNED_IN event
+      console.log('[LoginForm] Login successful, redirecting...');
       router.push('/');
       router.refresh();
     } catch (err: any) {

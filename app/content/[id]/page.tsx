@@ -64,18 +64,9 @@ export default async function ContentDetailPage({ params }: PageProps) {
       }
     : null;
 
-  if (!result.isAuthenticated && result.shouldSetAnonCookie && result.anonId) {
-    const secure = process.env.NODE_ENV === 'production';
-    cookieStore.set({
-      name: ANON_COOKIE_NAME,
-      value: result.anonId,
-      httpOnly: true,
-      sameSite: 'lax',
-      secure,
-      path: '/',
-      maxAge: ANON_COOKIE_MAX_AGE_SECONDS,
-    });
-  }
+  // Note: Cookie setting has been removed from here as it's not allowed in Server Components.
+  // Anonymous user ID cookies should be set in middleware or API routes instead.
+  // The current implementation in middleware.ts already handles this correctly.
 
   return (
     <ContentDetailClient

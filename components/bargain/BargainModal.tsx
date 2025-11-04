@@ -149,7 +149,7 @@ export default function BargainModal({ isOpen, onClose }: BargainModalProps) {
         },
         body: JSON.stringify({
           productType: 'monthly',
-          paymentMethod: 'alipay', // 默认支付宝
+          paymentMethod: 'wxpay', // V1.4.1: 改用微信支付
           couponCode,
         }),
       });

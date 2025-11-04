@@ -58,9 +58,14 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!paymentMethod || !['alipay', 'wxpay'].includes(paymentMethod)) {
+    // V1.4.1: 仅支持微信支付
+    if (paymentMethod !== 'wxpay') {
+      console.warn('[CREATE_ORDER] 不支持的支付方式:', paymentMethod);
       return NextResponse.json(
-        { success: false, error: '无效的支付方式' },
+        {
+          success: false,
+          error: '当前仅支持微信支付，如需其他支付方式请联系客服',
+        },
         { status: 400 }
       );
     }
