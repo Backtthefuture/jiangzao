@@ -17,9 +17,10 @@ export const dynamic = 'force-dynamic';
 /**
  * Z-Pay 支付回调接口
  *
- * POST /api/payment/callback
+ * GET 或 POST /api/payment/callback
  *
- * Content-Type: application/x-www-form-urlencoded
+ * Z-Pay 官方文档说明: 请求方法为 GET
+ * 但为了兼容性，同时支持 POST (application/x-www-form-urlencoded)
  *
  * 回调参数:
  * - pid: 商户ID
@@ -33,37 +34,26 @@ export const dynamic = 'force-dynamic';
  *
  * 返回: 纯文本 "success" 或 "fail"
  */
-export async function POST(request: Request) {
+
+/**
+ * 核心回调处理逻辑
+ * 统一处理 GET 和 POST 请求
+ */
+async function handleCallback(params: Record<string, any>) {
   const now = new Date();
-  let callbackData: any = {};
+  let callbackData = { ...params };
 
   try {
-    // 1. 验证 Content-Type
-    const contentType = request.headers.get('content-type');
-    if (!contentType?.includes('application/x-www-form-urlencoded')) {
-      console.error('[CALLBACK] 错误的 Content-Type', contentType);
-      return new Response('fail', { status: 400 });
-    }
-
-    // 2. 解析回调参数
-    const formData = await request.formData();
-    const params: Record<string, any> = {};
-
-    for (const [key, value] of formData.entries()) {
-      params[key] = value;
-    }
-
-    callbackData = { ...params };
-
     console.log('[CALLBACK] 收到回调', {
       timestamp: now.toISOString(),
       out_trade_no: params.out_trade_no,
       trade_no: params.trade_no,
       money: params.money,
       trade_status: params.trade_status,
+      method: 'UNIFIED',
     });
 
-    // 3. 验证回调参数完整性
+    // 1. 验证回调参数完整性
     if (!validateCallbackParams(params as Partial<ZPayCallbackParams>)) {
       console.error('[CALLBACK] 参数不完整', params);
       return new Response('fail', { status: 400 });
@@ -78,7 +68,7 @@ export async function POST(request: Request) {
       sign,
     } = params as ZPayCallbackParams;
 
-    // 4. 验证签名
+    // 2. 验证签名
     const { pid: configPid, key } = getZPayConfig();
 
     if (!verifyZPaySign(params, key)) {
@@ -89,19 +79,19 @@ export async function POST(request: Request) {
       return new Response('fail', { status: 403 });
     }
 
-    // 5. 验证商户 ID
+    // 3. 验证商户 ID
     if (pid !== configPid) {
       console.error('[CALLBACK] 商户ID不匹配', { received: pid, expected: configPid });
       return new Response('fail', { status: 403 });
     }
 
-    // 6. 验证交易状态
+    // 4. 验证交易状态
     if (trade_status !== TRADE_STATUS.SUCCESS) {
       console.log('[CALLBACK] 交易状态非成功', trade_status);
       return new Response('success'); // 返回 success 避免重复回调
     }
 
-    // 7. 查询订单
+    // 5. 查询订单
     const supabase = createClient();
 
     const { data: order, error: queryError } = await supabase
@@ -115,7 +105,7 @@ export async function POST(request: Request) {
       return new Response('fail', { status: 404 });
     }
 
-    // 8. 幂等性检查：仅处理 pending → paid
+    // 6. 幂等性检查：仅处理 pending → paid
     if (order.status !== 'pending') {
       console.log('[CALLBACK] 订单已处理', {
         order_id: out_trade_no,
@@ -124,7 +114,7 @@ export async function POST(request: Request) {
       return new Response('success'); // 返回 success 避免重复回调
     }
 
-    // 9. 验证金额
+    // 7. 验证金额
     const callbackAmount = parseCallbackMoney(money);
     const orderAmount = parseFloat(order.amount);
 
@@ -136,7 +126,7 @@ export async function POST(request: Request) {
       return new Response('fail', { status: 400 });
     }
 
-    // 10. 更新订单状态为 paid
+    // 8. 更新订单状态为 paid
     const { error: updateError } = await supabase
       .from('orders')
       .update({
@@ -153,7 +143,7 @@ export async function POST(request: Request) {
       return new Response('fail', { status: 500 });
     }
 
-    // 11. 激活/续费会员
+    // 9. 激活/续费会员
     const membershipSuccess = await activateOrRenewMembership(
       supabase,
       order.user_id,
@@ -170,7 +160,7 @@ export async function POST(request: Request) {
       return new Response('success');
     }
 
-    // 11.1. V1.4.0 - 标记优惠券为已使用（如果订单使用了优惠券）
+    // 10. V1.4.0 - 标记优惠券为已使用（如果订单使用了优惠券）
     if (order.coupon_code) {
       console.log('[CALLBACK] 标记优惠券为已使用:', order.coupon_code);
 
@@ -187,7 +177,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 12. 更新订单状态为 completed
+    // 11. 更新订单状态为 completed
     await supabase
       .from('orders')
       .update({
@@ -203,7 +193,7 @@ export async function POST(request: Request) {
       product_type: order.product_type,
     });
 
-    // 13. 返回 success
+    // 12. 返回 success
     return new Response('success');
   } catch (error) {
     console.error('[CALLBACK] 异常', {
@@ -214,7 +204,50 @@ export async function POST(request: Request) {
   }
 }
 
-// 拒绝 GET 请求
-export async function GET() {
-  return new Response('Method Not Allowed', { status: 405 });
+/**
+ * GET 请求处理
+ * Z-Pay 官方文档说明: 支付结果通知使用 GET 请求
+ */
+export async function GET(request: Request) {
+  try {
+    // 解析 URL 查询参数
+    const { searchParams } = new URL(request.url);
+    const params: Record<string, any> = {};
+
+    searchParams.forEach((value, key) => {
+      params[key] = value;
+    });
+
+    console.log('[CALLBACK] GET 请求', params);
+
+    // 调用统一处理函数
+    return await handleCallback(params);
+  } catch (error) {
+    console.error('[CALLBACK] GET 请求异常', error);
+    return new Response('fail', { status: 500 });
+  }
+}
+
+/**
+ * POST 请求处理
+ * 兼容 application/x-www-form-urlencoded 格式
+ */
+export async function POST(request: Request) {
+  try {
+    // 解析表单数据
+    const formData = await request.formData();
+    const params: Record<string, any> = {};
+
+    for (const [key, value] of formData.entries()) {
+      params[key] = value;
+    }
+
+    console.log('[CALLBACK] POST 请求', params);
+
+    // 调用统一处理函数
+    return await handleCallback(params);
+  } catch (error) {
+    console.error('[CALLBACK] POST 请求异常', error);
+    return new Response('fail', { status: 500 });
+  }
 }
