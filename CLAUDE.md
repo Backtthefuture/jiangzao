@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 "降噪" (Noise Reduction) is an AI industry interview curation platform built with Next.js 14 App Router. The platform aggregates high-quality interview content from podcasts (小宇宙) and video platforms (Bilibili, YouTube), enriching them with AI-generated summaries and curated quotes. Content is sourced from Feishu (Lark) multidimensional tables, with analytics stored in SQLite and user authentication managed by Supabase.
 
-**Current Version**: 1.4.4 (includes authentication, payment, AI bargaining, Vercel deployment, and service_role callback fix)
+**Current Version**: 1.4.5 (includes authentication, payment, AI bargaining, Vercel deployment, service_role callback fix, and homepage stats badge)
 
 ## Development Commands
 
@@ -476,7 +476,7 @@ The platform uses Supabase for authentication, content access tracking, membersh
   - `supabase_migration_v1.3.0_membership.sql`, `supabase_migration_v1.3.1_orders.sql` (payment)
   - `supabase_migration_v1.4.0_bargain.sql` (AI bargaining)
 
-## Feature Status (V1.4.4)
+## Feature Status (V1.4.5)
 
 ### Implemented
 - ✅ User registration with email verification
@@ -494,6 +494,8 @@ The platform uses Supabase for authentication, content access tracking, membersh
 - ✅ Payment callback RLS fix using service_role client (V1.4.4)
 - ✅ Order history API for membership center (V1.4.4)
 - ✅ Friendly login prompt on payment result page (V1.4.4)
+- ✅ Homepage bottom stats badge with Hits.sh (V1.4.5)
+- ✅ Copyright footer on homepage (V1.4.5)
 
 ### Known Limitations
 - Reading history page shows only last 20 viewed contents (limit in `lib/readingHistory.ts:40`)

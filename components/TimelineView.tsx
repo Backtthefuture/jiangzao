@@ -64,6 +64,31 @@ export default function TimelineView({
         </div>
       )}
 
+      {/* Stats Badge - V1.4.5: 仅在首页底部显示 */}
+      {contents.length >= total && contents.length > 0 && (
+        <div className="mt-8 pt-8 border-t border-gray-100 text-center">
+          {/* Hits.sh 统计徽章 */}
+          <a
+            href="https://hits.sh/picquote.superhuang.me/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block hover:opacity-80 transition-opacity"
+            aria-label="网站访问统计"
+          >
+            <img
+              alt="Hits"
+              src="https://hits.sh/picquote.superhuang.me.svg"
+              loading="lazy"
+            />
+          </a>
+
+          {/* 版权信息 */}
+          <div className="mt-4 text-xs text-gray-400">
+            © 2025 降噪平台 · 降低信息噪音
+          </div>
+        </div>
+      )}
+
       {/* Empty State */}
       {contents.length === 0 && (
         <div className="text-center py-20">
