@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 "降噪" (Noise Reduction) is an AI industry interview curation platform built with Next.js 14 App Router. The platform aggregates high-quality interview content from podcasts (小宇宙) and video platforms (Bilibili, YouTube), enriching them with AI-generated summaries and curated quotes. Content is sourced from Feishu (Lark) multidimensional tables, with analytics stored in SQLite and user authentication managed by Supabase.
 
-**Current Version**: 1.4.3 (includes authentication, payment, AI bargaining, and Vercel deployment support)
+**Current Version**: 1.4.4 (includes authentication, payment, AI bargaining, Vercel deployment, and service_role callback fix)
 
 ## Development Commands
 
@@ -124,6 +124,12 @@ The transform layer handles:
 5. After payment, Z-Pay sends callback to `/api/payment/callback`
 6. System verifies signature, activates membership, updates order status
 
+**V1.4.4 Callback Fix**:
+- Payment callback now uses `service_role` client (from `@supabase/supabase-js`)
+- Bypasses RLS to write to `orders` and `user_memberships` tables
+- Previous issue: anon client was blocked by RLS policies
+- Required env var: `SUPABASE_SERVICE_ROLE_KEY`
+
 ### AI Bargaining System (V1.4.0)
 
 **Ark AI Integration** (`lib/ark.ts`):
@@ -189,7 +195,8 @@ app/
     │   └── submit/route.ts                # Submit bargain reason for AI evaluation
     ├── user/
     │   ├── reading-stats/route.ts         # Get user reading statistics
-    │   └── membership/route.ts            # Get user membership status
+    │   ├── membership/route.ts            # Get user membership status
+    │   └── orders/route.ts                # Get user order history (V1.4.4+)
     ├── contents/route.ts                  # List contents (supports ?tag=, ?guest= filters)
     ├── contents/[id]/route.ts             # Single content detail
     ├── tags/route.ts                      # Aggregated tag list
@@ -252,6 +259,7 @@ FEISHU_TABLE_ID=tblXXXXX
 # Supabase configuration (see SUPABASE_AUTH.md for setup)
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...  # Required for V1.4.4+ payment callback (bypasses RLS)
 
 # Site configuration
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
@@ -414,12 +422,16 @@ The platform uses Supabase for authentication, content access tracking, membersh
 
 14. **Payment callback security**: Z-Pay callbacks validate signatures using HMAC-MD5. Never skip signature validation in production. The callback URL must match exactly what's configured in Z-Pay merchant backend.
 
-15. **Service Role Key**: The bargaining API requires `SUPABASE_SERVICE_ROLE_KEY` to bypass RLS when inserting bargain records. This key has admin privileges - never expose it to client-side code.
+15. **Service Role Key (V1.4.4+)**: The bargaining API and payment callback require `SUPABASE_SERVICE_ROLE_KEY` to bypass RLS when writing to protected tables (`bargain_attempts`, `orders`, `user_memberships`). This key has admin privileges - never expose it to client-side code. Must be configured in environment variables for both local and production environments.
+
+16. **Payment Callback RLS (V1.4.4 Fix)**: Payment callback API must use `service_role` client, not the SSR client. The SSR client uses anon key which is blocked by RLS policies. Always use `createClient` from `@supabase/supabase-js` (not `@supabase/ssr`) for callback APIs.
+
+17. **Payment Result Page Login (V1.4.4)**: The payment result page shows a friendly login prompt instead of forcing redirect when user is not authenticated. This prevents user confusion after completing payment.
 
 ## Deployment Considerations
 
-### Vercel (Recommended for V1.4.3+)
-- **Environment variables**: Configure all variables in Vercel dashboard (Feishu, Supabase, Z-Pay, Ark AI, access limits)
+### Vercel (Recommended for V1.4.4+)
+- **Environment variables**: Configure all variables in Vercel dashboard (Feishu, Supabase + service_role key, Z-Pay, Ark AI, access limits)
 - **Analytics**: Set `ENABLE_ANALYTICS=false` (SQLite not supported on serverless)
 - **Dynamic routes**: All routes using `cookies()` or `searchParams` must export `export const dynamic = 'force-dynamic'`
 - **Function timeout**: Configured to 30s in `vercel.json` for payment/AI operations
@@ -439,7 +451,7 @@ The platform uses Supabase for authentication, content access tracking, membersh
   - `https://your-domain.com/api/auth/callback`
   - `https://your-domain.com/auth/*`
 - **Email templates**: Configure verification email with callback URL pattern
-- **Service Role Key**: Required for bargaining API, add to environment variables (never commit)
+- **Service Role Key (V1.4.4+)**: Required for bargaining API and payment callback, add to environment variables (never commit). Get from: Supabase Dashboard → Settings → API → `service_role` key
 
 ### Third-Party Services
 - **Z-Pay**: Configure callback URL in merchant backend to match your domain
@@ -464,7 +476,7 @@ The platform uses Supabase for authentication, content access tracking, membersh
   - `supabase_migration_v1.3.0_membership.sql`, `supabase_migration_v1.3.1_orders.sql` (payment)
   - `supabase_migration_v1.4.0_bargain.sql` (AI bargaining)
 
-## Feature Status (V1.4.3)
+## Feature Status (V1.4.4)
 
 ### Implemented
 - ✅ User registration with email verification
@@ -479,6 +491,9 @@ The platform uses Supabase for authentication, content access tracking, membersh
 - ✅ AI-powered bargaining system (Ark AI)
 - ✅ Coupon code generation with 24-hour expiry
 - ✅ Vercel deployment support with serverless optimizations
+- ✅ Payment callback RLS fix using service_role client (V1.4.4)
+- ✅ Order history API for membership center (V1.4.4)
+- ✅ Friendly login prompt on payment result page (V1.4.4)
 
 ### Known Limitations
 - Reading history page shows only last 20 viewed contents (limit in `lib/readingHistory.ts:40`)

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import {
   verifyZPaySign,
@@ -13,6 +14,29 @@ import type { ZPayCallbackParams } from '@/lib/zpay';
 
 // Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
+
+/**
+ * V1.4.4: 获取 service_role 客户端
+ *
+ * 用于回调接口写入受RLS保护的表
+ * - orders: 只有 service_role 可写
+ * - user_memberships: 只有 service_role 可写
+ */
+function getAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+  if (!url || !serviceKey) {
+    throw new Error('Supabase service_role配置缺失');
+  }
+
+  return createAdminClient(url, serviceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
 
 /**
  * Z-Pay 支付回调接口
@@ -91,10 +115,10 @@ async function handleCallback(params: Record<string, any>) {
       return new Response('success'); // 返回 success 避免重复回调
     }
 
-    // 5. 查询订单
-    const supabase = createClient();
+    // 5. 查询订单 (V1.4.4: 使用 service_role)
+    const admin = getAdmin();
 
-    const { data: order, error: queryError } = await supabase
+    const { data: order, error: queryError } = await admin
       .from('orders')
       .select('*')
       .eq('order_id', out_trade_no)
@@ -126,8 +150,8 @@ async function handleCallback(params: Record<string, any>) {
       return new Response('fail', { status: 400 });
     }
 
-    // 8. 更新订单状态为 paid
-    const { error: updateError } = await supabase
+    // 8. 更新订单状态为 paid (V1.4.4: 使用 service_role)
+    const { error: updateError } = await admin
       .from('orders')
       .update({
         status: 'paid',
@@ -143,9 +167,9 @@ async function handleCallback(params: Record<string, any>) {
       return new Response('fail', { status: 500 });
     }
 
-    // 9. 激活/续费会员
+    // 9. 激活/续费会员 (V1.4.4: 使用 service_role)
     const membershipSuccess = await activateOrRenewMembership(
-      supabase,
+      admin,
       order.user_id,
       order.product_type
     );
@@ -160,11 +184,11 @@ async function handleCallback(params: Record<string, any>) {
       return new Response('success');
     }
 
-    // 10. V1.4.0 - 标记优惠券为已使用（如果订单使用了优惠券）
+    // 10. V1.4.0 - 标记优惠券为已使用（如果订单使用了优惠券）(V1.4.4: 使用 service_role)
     if (order.coupon_code) {
       console.log('[CALLBACK] 标记优惠券为已使用:', order.coupon_code);
 
-      const couponMarked = await markCouponAsUsed(supabase, order.coupon_code);
+      const couponMarked = await markCouponAsUsed(admin, order.coupon_code);
 
       if (!couponMarked) {
         console.error('[CALLBACK] 标记优惠券失败', {
@@ -177,8 +201,8 @@ async function handleCallback(params: Record<string, any>) {
       }
     }
 
-    // 11. 更新订单状态为 completed
-    await supabase
+    // 11. 更新订单状态为 completed (V1.4.4: 使用 service_role)
+    await admin
       .from('orders')
       .update({
         status: 'completed',

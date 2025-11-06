@@ -1,7 +1,7 @@
 # 产品需求文档 (PRD)
 ## 降噪 - AI行业访谈精华策展平台
 
-**文档版本**: V1.4.3 (支付回调修复 + Middleware 优化)
+**文档版本**: V1.4.4 (支付回调RLS修复 + 订单历史API + 结果页优化)
 **创建日期**: 2025-10-30
 **最后更新**: 2025-11-06
 **产品负责人**: 黄超强
@@ -11,6 +11,164 @@
 ---
 
 ## 🆕 版本更新记录
+
+### V1.4.4 - 支付回调RLS修复 + 订单历史API + 结果页优化 ✅
+**版本号**: 1.4.4
+**发布日期**: 2025-11-06
+**更新类型**: 🐛 Critical Bug Fix + ✨ 小功能增强
+**优先级**: 🔴 高（支付闭环 + 用户中心）
+**状态**: 🚧 待发布
+
+#### 📋 产品需求摘要
+
+【背景问题（V1.4.3 之后仍存在）】
+- 回调接口已支持 GET/POST 且白名单放行，但回调内部仍使用 Supabase 匿名客户端（anon key），在开启 RLS 的前提下：
+  - 无法更新 `orders`（pending → paid/ completed）
+  - 无法 upsert `user_memberships`（需要 service_role）
+  - 实际表现：日志显示“处理成功”，但数据库未变更（会员未激活），Z-Pay 端显示“已通知”但用户无权益
+- 会员中心缺少“订单历史”API，页面仅显示当前会员状态，用户无法查看历史订单
+- 支付结果页在未登录情况下直接重定向到登录页，体验略生硬，与“页面引导登录”的文案不一致
+
+#### ✅ 解决方案与可行性验证
+
+1) 在回调中使用 service_role 客户端（技术可行，已在砍价 API 验证）
+- 参考 `app/api/bargain/submit/route.ts` 已通过 `@supabase/supabase-js` + `SUPABASE_SERVICE_ROLE_KEY` 写入受 RLS 保护表
+- 在 `app/api/payment/callback/route.ts`：
+  - 新增 admin 客户端：`createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)`
+  - 用 admin 客户端执行：更新 `orders` 状态、激活会员（`user_memberships` upsert）、标记优惠券
+- 风险评估：service_role 仅在服务端使用，环境变量不暴露到客户端；RLS 策略与迁移脚本一致（orders/user_memberships 仅 service_role 可写），安全边界清晰
+
+2) 新增“订单历史”API（技术可行）
+- 路由：`GET /api/user/orders`
+- 鉴权：使用 SSR Supabase 客户端 + `auth.getUser()`；RLS 已有策略“Users can view own orders”，无需额外策略
+- 返回：近 10 条订单（按时间倒序），字段包含 orderId/status/amount/productName/createdAt/paidAt
+- 会员中心页面接入该 API，渲染订单列表
+
+3) 结果页登录引导优化（技术可行）
+- 当前实现：`/api/payment/check-status/[orderId]` 返回 401 时，前端直接 `router.push('/auth/login')`
+- 调整为：在结果页展示提示与“登录查看订单”按钮（保留在需求页面停留，不强制跳转），更符合“引导登录”预期
+
+4) 飞书数据稳定性补强（可选，已有 axios + 重试基础上微调）
+- 保持 `lib/feishu.ts` 的 axios + 3 次递增退避重试；为 `getRecords/getRecordById` 补充 30s 超时（axios 已配置）
+- 对关键 Feishu 请求添加错误分级日志，便于线上排查（已具备基础拦截器）
+
+综合判断：方案均为小范围代码调整，兼容既有架构，不改变外部接口；可在 0.5 天内完成与验证。
+
+#### 📂 影响范围
+- `app/api/payment/callback/route.ts`：改用 service_role 客户端执行所有写操作；保留 GET/POST 统一处理与幂等逻辑
+- `app/api/user/orders/route.ts`：新增（RLS 只读）
+- `app/payment/result/page.tsx`：401 不再强跳登录，改为在页内引导
+- 文档：`CLAUDE.md`、`V1.4.3_TEST_CHECKLIST.md` 补充“回调需 service_role”与“结果页引导登录”说明
+
+#### 🧪 测试验证
+- 回调链路（新订单）：
+  - 支付成功 → 回调 200 + 文本 `success`
+  - Supabase：`orders.status = completed`，`user_memberships` 激活
+  - 结果页：2-5 秒内显示“支付成功”，右上角显示会员标识
+- 幂等/并发：重复回调或并发回调均返回 `success`，状态稳定在 `completed`
+- 订单历史：会员中心显示最近订单记录（含折扣字段）
+- 未登录结果页：不强制跳转，显示“登录查看订单”按钮
+
+---
+
+#### 🏗️ 技术实现要点（V1.4.4）
+
+1) 回调使用 service_role 客户端（关键）
+
+```ts
+// 文件: app/api/payment/callback/route.ts（核心片段）
+import { createClient as createAdminClient } from '@supabase/supabase-js';
+
+function getAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  return createAdminClient(url, serviceKey);
+}
+
+async function handleCallback(params: Record<string, any>) {
+  const admin = getAdmin(); // 使用 service_role 客户端
+
+  // ...签名/商户ID/交易状态/金额校验
+
+  // 写入 orders 与 user_memberships（RLS 允许 service_role 全权写入）
+  await admin.from('orders').update({ status: 'paid', ... }).eq('order_id', out_trade_no);
+  await activateOrRenewMembership(admin, order.user_id, order.product_type);
+  await admin.from('orders').update({ status: 'completed', ... }).eq('order_id', out_trade_no);
+
+  return new Response('success');
+}
+```
+
+2) 新增“订单历史”API
+
+```ts
+// 文件: app/api/user/orders/route.ts（新）
+import { createClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (error) return NextResponse.json({ success: false, error: '查询失败' }, { status: 500 });
+
+  return NextResponse.json({
+    success: true,
+    orders: (data || []).map(o => ({
+      orderId: o.order_id,
+      status: o.status,
+      productName: o.product_name,
+      productType: o.product_type,
+      amount: Number(o.amount),
+      createdAt: o.created_at,
+      paidAt: o.callback_received_at,
+      tradeNo: o.trade_no,
+    })),
+  });
+}
+```
+
+3) 结果页登录引导（不强跳）
+
+```ts
+// 文件: app/payment/result/page.tsx（核心片段）
+if (!data.success && response.status === 401) {
+  setError(null);
+  setOrder(null);
+  setShowLoginPrompt(true); // 在页内展示 CTA 按钮
+  clearInterval(intervalId);
+  clearTimeout(timeoutId);
+  setLoading(false);
+  return;
+}
+```
+
+---
+
+#### 🚀 上线与回滚（V1.4.4）
+
+- 上线前检查：
+  - [ ] Vercel 三套环境均已配置 `SUPABASE_SERVICE_ROLE_KEY`
+  - [ ] `NEXT_PUBLIC_SITE_URL` 指向生产域名（非 localhost）
+  - [ ] 预备 1 个测试账号 + ¥0.01 订单流程
+- 上线验证：
+  - [ ] 新订单支付 → 结果页 2-5s 内显示“支付成功”
+  - [ ] Supabase：orders=completed，user_memberships=active
+  - [ ] 会员中心可见最近订单
+- 回滚策略：
+  - 如回调失败率上升，回滚至 V1.4.3 Tag；同时保留 service_role 代码以待排查
+
+---
 
 ### V1.4.3 - 支付回调修复 + Middleware 路由优化 🔧
 **版本号**: 1.4.3

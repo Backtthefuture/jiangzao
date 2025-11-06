@@ -28,6 +28,7 @@ export default function PaymentResultPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pollCount, setPollCount] = useState(0);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false); // V1.4.4: 显示登录引导而不强制跳转
 
   useEffect(() => {
     if (!orderId) {
@@ -45,8 +46,14 @@ export default function PaymentResultPage() {
         const data = await response.json();
 
         if (!data.success) {
+          // V1.4.4: 401 时显示登录引导，而不强制跳转
           if (response.status === 401) {
-            router.push('/auth/login');
+            setError(null);
+            setOrder(null);
+            setShowLoginPrompt(true);
+            clearInterval(intervalId);
+            clearTimeout(timeoutId);
+            setLoading(false);
             return;
           }
           throw new Error(data.error || '查询订单失败');
@@ -90,6 +97,59 @@ export default function PaymentResultPage() {
       clearTimeout(timeoutId);
     };
   }, [orderId, router]);
+
+  // V1.4.4: 未登录引导（不强制跳转）
+  if (showLoginPrompt) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-4">
+              <svg
+                className="h-10 w-10 text-blue-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">请先登录</h2>
+            <p className="text-gray-600 mb-6">
+              为了查看订单状态和激活会员权益，请先登录你的账号
+            </p>
+            <div className="flex flex-col gap-4">
+              <Link
+                href={`/auth/login?redirect=/payment/result?order_id=${orderId}`}
+                className="w-full py-3 px-6 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-center font-medium"
+              >
+                立即登录
+              </Link>
+              <Link
+                href="/pricing"
+                className="w-full py-3 px-6 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-center"
+              >
+                返回定价页
+              </Link>
+            </div>
+            <div className="mt-6 text-sm text-gray-500">
+              <p>💡 小贴士:</p>
+              <ul className="mt-2 space-y-1 text-left">
+                <li>• 支付成功后需要登录才能激活会员</li>
+                <li>• 登录后系统会自动处理订单</li>
+                <li>• 如有问题请联系客服</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // 加载中
   if (loading && !order) {
