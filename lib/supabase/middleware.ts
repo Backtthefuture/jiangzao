@@ -42,7 +42,9 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/tags') &&
     !request.nextUrl.pathname.startsWith('/guests') &&
     !request.nextUrl.pathname.startsWith('/content') &&
-    request.nextUrl.pathname !== '/pricing' // V1.4.0: 定价页公开访问
+    request.nextUrl.pathname !== '/pricing' && // V1.4.0: 定价页公开访问
+    !request.nextUrl.pathname.startsWith('/payment') && // V1.4.3: 支付结果页公开访问
+    request.nextUrl.pathname !== '/api/payment/callback' // V1.4.3: Z-Pay 回调接口无需认证
   ) {
     // No user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
