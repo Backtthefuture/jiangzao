@@ -64,12 +64,12 @@ export default function TimelineView({
         </div>
       )}
 
-      {/* Stats Badge - V1.4.5: 仅在首页底部显示 */}
+      {/* Stats Badge - V1.4.6: 仅在首页底部显示 */}
       {contents.length >= total && contents.length > 0 && (
         <div className="mt-8 pt-8 border-t border-gray-100 text-center">
           {/* Hits.sh 统计徽章 */}
           <a
-            href="https://hits.sh/picquote.superhuang.me/"
+            href="https://hits.sh/aihuangshu.com/"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block hover:opacity-80 transition-opacity"
@@ -77,7 +77,7 @@ export default function TimelineView({
           >
             <img
               alt="Hits"
-              src="https://hits.sh/picquote.superhuang.me.svg"
+              src="https://hits.sh/aihuangshu.com.svg"
               loading="lazy"
             />
           </a>

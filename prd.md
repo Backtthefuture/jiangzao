@@ -12,12 +12,55 @@
 
 ## 🆕 版本更新记录
 
+### V1.4.6 - 修正统计徽章域名 🔧
+**版本号**: 1.4.6
+**发布日期**: 2025-11-07
+**更新类型**: 🐛 Bug Fix (域名修正)
+**优先级**: 🟢 低（配置修正）
+**状态**: ✅ 已完成
+
+#### 📋 产品需求摘要
+
+【问题】
+- V1.4.5 统计徽章使用了错误的域名 `picquote.superhuang.me`
+- 实际生产域名应为 `aihuangshu.com`
+
+【解决方案】
+- 更新 TimelineView.tsx 中的统计徽章 URL
+- 修正为正确域名：`https://hits.sh/aihuangshu.com/`
+- 同步更新版本注释：V1.4.5 → V1.4.6
+
+#### 📂 修改内容
+
+**文件**: `components/TimelineView.tsx`
+
+**变更**:
+```diff
+- href="https://hits.sh/picquote.superhuang.me/"
++ href="https://hits.sh/aihuangshu.com/"
+
+- src="https://hits.sh/picquote.superhuang.me.svg"
++ src="https://hits.sh/aihuangshu.com.svg"
+
+- {/* Stats Badge - V1.4.5: 仅在首页底部显示 */}
++ {/* Stats Badge - V1.4.6: 仅在首页底部显示 */}
+```
+
+#### 🧪 验证
+
+- [x] URL 更新为正确域名
+- [x] 徽章图片 URL 同步更新
+- [x] 版本注释更新
+- [x] 功能不变，仅域名修正
+
+---
+
 ### V1.4.5 - 首页底部统计徽章 + 版权信息 📊
 **版本号**: 1.4.5
 **发布日期**: 2025-11-07
 **更新类型**: ✨ 小功能增强 (Feature Enhancement)
 **优先级**: 🟢 低（用户体验优化）
-**状态**: 🚧 待发布
+**状态**: ✅ 已完成
 
 #### 📋 产品需求摘要
 
