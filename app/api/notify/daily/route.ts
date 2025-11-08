@@ -144,9 +144,8 @@ export async function POST(request: NextRequest) {
       url: process.env.NEXT_PUBLIC_H5_URL || 'https://jiangzao2025.vercel.app/h5',
       data: {
         first: { value: '🎉 降噪平台有新内容更新啦！' },
-        keyword1: { value: yesterdayDateStr },
-        keyword2: { value: contentTitles + moreCount },
-        keyword3: { value: `${yesterdayContents.length}篇` },
+        time3: { value: yesterdayDateStr }, // 时间字段
+        thing5: { value: contentTitles + moreCount }, // 商品名称字段（用于内容列表）
         remark: { value: '点击查看精彩内容 →' },
       },
     };

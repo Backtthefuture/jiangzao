@@ -54,11 +54,14 @@ export async function sendTemplateMessage(params: {
   templateId: string;
   url: string; // 跳转URL
   data: {
-    first: { value: string; color?: string };
-    keyword1: { value: string; color?: string };
-    keyword2: { value: string; color?: string };
-    keyword3: { value: string; color?: string };
-    remark: { value: string; color?: string };
+    first?: { value: string; color?: string };
+    time3?: { value: string; color?: string };
+    thing5?: { value: string; color?: string };
+    remark?: { value: string; color?: string };
+    // 兼容旧版字段名
+    keyword1?: { value: string; color?: string };
+    keyword2?: { value: string; color?: string };
+    keyword3?: { value: string; color?: string };
   };
 }) {
   const accessToken = await getWeChatAccessToken();
@@ -93,11 +96,14 @@ export async function batchSendTemplateMessage(
   messageData: {
     url: string;
     data: {
-      first: { value: string };
-      keyword1: { value: string };
-      keyword2: { value: string };
-      keyword3: { value: string };
-      remark: { value: string };
+      first?: { value: string };
+      time3?: { value: string };
+      thing5?: { value: string };
+      remark?: { value: string };
+      // 兼容旧版字段名
+      keyword1?: { value: string };
+      keyword2?: { value: string };
+      keyword3?: { value: string };
     };
   }
 ) {
