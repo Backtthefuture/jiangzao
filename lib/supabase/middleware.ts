@@ -38,6 +38,8 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/auth') &&
     !request.nextUrl.pathname.startsWith('/api/auth') &&
     !request.nextUrl.pathname.startsWith('/api/content') &&
+    !request.nextUrl.pathname.startsWith('/api/wechat') && // V2.1.0: 微信API公开访问
+    !request.nextUrl.pathname.startsWith('/api/notify') && // V2.1.0: 推送API公开访问（由webhook密钥保护）
     request.nextUrl.pathname !== '/' &&
     !request.nextUrl.pathname.startsWith('/tags') &&
     !request.nextUrl.pathname.startsWith('/guests') &&
