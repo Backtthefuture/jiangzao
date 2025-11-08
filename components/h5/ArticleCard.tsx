@@ -148,6 +148,9 @@ export default function ArticleCard({ content }: ArticleCardProps) {
 
         {/* 底部操作区 */}
         <div className="mt-8 mb-6">
+          <p className="text-center text-xs text-gray-400 mb-4">
+            已阅读完毕 · 查看原始访谈
+          </p>
           <hr className="border-gray-200 mb-6" />
           <a
             href={content.originalLink}
@@ -157,9 +160,6 @@ export default function ArticleCard({ content }: ArticleCardProps) {
           >
             👉 跳转原内容
           </a>
-          <p className="text-center text-xs text-gray-400 mt-3">
-            已阅读完毕 · 查看原始访谈
-          </p>
         </div>
       </div>
     </div>
