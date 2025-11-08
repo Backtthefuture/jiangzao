@@ -146,16 +146,20 @@ export default function ArticleCard({ content }: ArticleCardProps) {
           )}
         </div>
 
-        {/* 底部操作栏 */}
-        <div className="sticky bottom-0 bg-white border-t border-gray-200 -mx-4 px-4 py-4">
+        {/* 底部操作区 */}
+        <div className="mt-8 mb-6">
+          <hr className="border-gray-200 mb-6" />
           <a
             href={content.originalLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full py-3 bg-blue-500 text-white text-center rounded-lg font-medium hover:bg-blue-600 transition-colors"
+            className="block w-full py-3 bg-blue-500 text-white text-center rounded-lg font-medium hover:bg-blue-600 transition-colors active:scale-95"
           >
-            🔗 查看原文
+            👉 跳转原内容
           </a>
+          <p className="text-center text-xs text-gray-400 mt-3">
+            已阅读完毕 · 查看原始访谈
+          </p>
         </div>
       </div>
     </div>
