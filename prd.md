@@ -1,16 +1,405 @@
 # 产品需求文档 (PRD)
 ## 降噪 - AI行业访谈精华策展平台
 
-**文档版本**: V1.4.4 (支付回调RLS修复 + 订单历史API + 结果页优化)
+**文档版本**: V2.0.0 (H5移动端独立版本 - Snap Scroll沉浸式阅读)
 **创建日期**: 2025-10-30
-**最后更新**: 2025-11-06
+**最后更新**: 2025-11-08
 **产品负责人**: 黄超强
-**设计阶段**: MVP (最小可行产品)
-**技术架构**: 飞书多维表格 + Next.js + Supabase Auth + Z-Pay支付(微信) + 火山方舟AI（Ark）
+**设计阶段**: MVP扩展 (Web + H5双端)
+**技术架构**: 飞书多维表格 + Next.js App Router (路由组) + Supabase Auth + Z-Pay支付(微信) + 火山方舟AI（Ark）
 
 ---
 
 ## 🆕 版本更新记录
+
+### V2.0.0 - H5移动端独立版本 📱
+**版本号**: 2.0.0
+**发布日期**: 2025-11-08
+**更新类型**: 🚀 Major Feature (重大功能)
+**优先级**: 🔴 高（战略级新产品线）
+**状态**: 🚧 开发中
+
+#### 📋 产品需求摘要
+
+【背景与目标】
+- 移动端用户增长迅速，现有Web版在手机上阅读体验不佳
+- 需要专为移动端设计的沉浸式阅读界面
+- H5版本将独立迭代，与Web版形成差异化产品定位
+- 目标：打造"抖音式"内容消费体验，降低阅读门槛，提升用户停留时长
+
+【用户价值】
+- **沉浸式阅读**：全屏展示，专注单篇内容，减少干扰
+- **流畅切换**：垂直滚动阅读，左右滑动换篇，符合移动端操作习惯
+- **快速消费**：初始折叠摘要，点击展开全文，满足不同阅读深度需求
+- **无缝体验**：去除Header等Web元素，100%屏幕利用率
+
+【设计原则】
+- **移动优先**：所有交互针对触摸屏优化
+- **性能极致**：CSS原生Scroll Snap，无需复杂JS逻辑
+- **数据复用**：与Web版共享数据层，降低维护成本
+- **架构隔离**：使用Next.js路由组，Web/H5完全独立，互不影响
+
+#### 📐 ASCII 原型图 - 方案2 Snap Scroll
+
+##### 原型1: H5页面结构
+
+```
+┌─────────────────────────────────────┐
+│  H5 移动端 (/h5) - 无Header设计      │
+├─────────────────────────────────────┤
+│                                     │
+│  降噪 H5               🔍  ☰         │ ← 简化顶栏（固定）
+├─────────────────────────────────────┤
+│                                     │
+│  ╔═══════════════════════════════╗ │
+│  ║                               ║ │
+│  ║     [文章1封面图 - 全宽]      ║ │ ← 封面图（40vh）
+│  ║                               ║ │
+│  ╚═══════════════════════════════╝ │
+│                                     │
+│  📌 AI行业洞察 · 技术趋势            │ ← 标签
+│  访谈对象：张三 | 小宇宙 · 2天前     │ ← 元信息
+│                                     │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+│                                     │
+│  💬 精选金句                        │
+│  ┌─────────────────────────────┐  │
+│  │ "核心观点引用..."           │  │ ← 金句1
+│  └─────────────────────────────┘  │
+│  ┌─────────────────────────────┐  │
+│  │ "第二条洞察..."             │  │ ← 金句2
+│  └─────────────────────────────┘  │
+│                                     │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+│                                     │
+│  📝 摘要正文                        │
+│                                     │
+│  ## 一、行业背景                    │
+│  这里是Markdown内容...              │ ← 初始显示前300字
+│  继续向下滚动查看更多内容...         │
+│                                     │
+│  [展开全文] ← 折叠状态               │ ← 点击展开
+│                                     │
+│  ↓ 继续滚动阅读完整内容 ↓           │
+│                                     │
+├─────────────────────────────────────┤
+│  🔗 原文  👁 1.2k  ❤️ 收藏  💬 评论│ ← 底部固定操作栏
+└─────────────────────────────────────┘
+        ↑↓ 垂直滚动：文章内滚动
+        ← → 左右滑动：切换文章
+
+        CSS: scroll-snap-type: y mandatory
+             scroll-snap-align: start
+             min-height: 100dvh (每篇占满屏幕)
+```
+
+##### 原型2: 滚动吸附效果
+
+```
+┌─────────────────────────────────────┐
+│  【文章1 - 当前视口】                │
+│  ╔═══════════════════════════════╗ │
+│  ║   封面图                      ║ │
+│  ╚═══════════════════════════════╝ │
+│  标签 · 元信息                      │
+│  金句...                            │ ← Snap Point 1
+│  正文内容（可垂直滚动）...           │
+│  🔗 原文  👁 1.2k                  │
+├─────────────────────────────────────┤ ← Scroll Snap分界线
+│  【文章2 - 向下滚动后自动吸附】      │
+│  ╔═══════════════════════════════╗ │
+│  ║   封面图                      ║ │
+│  ╚═══════════════════════════════╝ │ ← Snap Point 2
+│  标签 · 元信息                      │
+│  金句...                            │
+│  正文内容...                        │
+└─────────────────────────────────────┘
+
+用户操作：
+1. 垂直滚动：在文章1内阅读 → 滚到底部继续滚动 → 自动吸附到文章2顶部
+2. 左右滑动：直接跳转到上/下一篇文章
+3. 点击[展开全文]：文章内容从折叠→完整展示
+```
+
+##### 原型3: 架构对比 Web vs H5
+
+```
+┌────────────────────────────────────────────────────────┐
+│  Next.js App Router 架构 (V2.0.0)                      │
+├────────────────────────────────────────────────────────┤
+│                                                        │
+│  app/                                                  │
+│  ├── layout.tsx ← 根Layout（仅html/body/globals.css） │
+│  │                                                     │
+│  ├── (web)/ ← 路由组（URL不变）                        │
+│  │   ├── layout.tsx ← Web Layout（含Header）          │
+│  │   ├── page.tsx ← 首页 (/)                          │
+│  │   ├── tags/[name]/page.tsx ← 标签页 (/tags/...)    │
+│  │   ├── guests/[name]/page.tsx                       │
+│  │   ├── content/[id]/page.tsx                        │
+│  │   ├── pricing/page.tsx                             │
+│  │   ├── payment/result/page.tsx                      │
+│  │   └── user/                                        │
+│  │       ├── membership/page.tsx                      │
+│  │       └── reading-history/page.tsx                 │
+│  │                                                     │
+│  ├── h5/ ← H5独立路由                                  │
+│  │   ├── layout.tsx ← H5 Layout（无Header）           │
+│  │   └── page.tsx ← H5首页 (/h5)                      │
+│  │                                                     │
+│  ├── auth/ ← 共用认证（Web和H5）                       │
+│  │   ├── login/page.tsx                               │
+│  │   └── signup/page.tsx                              │
+│  │                                                     │
+│  └── api/ ← 共用API（Web和H5）                         │
+│      ├── contents/route.ts                            │
+│      ├── auth/                                        │
+│      └── payment/                                     │
+│                                                        │
+│  components/                                           │
+│  ├── web/ ← Web专用组件                                │
+│  │   ├── TimelineView.tsx                             │
+│  │   └── TimelineCard.tsx                             │
+│  │                                                     │
+│  ├── h5/ ← H5专用组件 (新建)                           │
+│  │   ├── ArticleViewSnapScroll.tsx ← 主容器           │
+│  │   └── ArticleCard.tsx ← 文章卡片                   │
+│  │                                                     │
+│  └── shared/ ← 共用组件                                │
+│      ├── Header.tsx ← 仅Web使用                        │
+│      ├── QuoteBlock.tsx ← Web和H5共用                  │
+│      └── MarkdownRenderer.tsx ← Web和H5共用            │
+│                                                        │
+│  lib/ ← 数据层（完全复用，无需修改）                    │
+│  ├── transform.ts ← Feishu数据转换                     │
+│  ├── types.ts ← Content类型定义                        │
+│  ├── cache.ts ← 三级缓存                               │
+│  └── supabase/ ← 认证系统                              │
+│                                                        │
+└────────────────────────────────────────────────────────┘
+
+路由访问示例：
+- Web首页:  https://aihuangshu.com/        → app/(web)/page.tsx
+- H5首页:   https://aihuangshu.com/h5      → app/h5/page.tsx
+- Web标签页: https://aihuangshu.com/tags/AI → app/(web)/tags/[name]/page.tsx
+- 登录页:    https://aihuangshu.com/auth/login → app/auth/login/page.tsx (共用)
+```
+
+#### 🏗️ 技术架构与实现要点
+
+##### 技术要点1: 路由组隔离策略
+
+**为什么使用路由组？**
+- ✅ URL保持不变：`/` 仍是首页，`/tags` 仍是标签页
+- ✅ Layout完全隔离：Web有Header，H5无Header
+- ✅ 代码结构清晰：Web和H5组件分离，便于独立迭代
+- ✅ Next.js官方推荐模式
+
+**实施步骤**：
+```bash
+# 1. 创建路由组
+mkdir -p app/(web) app/h5
+
+# 2. 移动Web页面（使用git mv保留历史）
+git mv app/page.tsx app/(web)/page.tsx
+git mv app/tags app/(web)/tags
+git mv app/guests app/(web)/guests
+git mv app/content app/(web)/content
+git mv app/pricing app/(web)/pricing
+git mv app/payment app/(web)/payment
+git mv app/user app/(web)/user
+git mv app/about app/(web)/about
+
+# 3. 保持不动
+# - app/auth（共用）
+# - app/api（共用）
+# - app/layout.tsx（根layout）
+# - app/globals.css（全局样式）
+```
+
+##### 技术要点2: CSS Scroll Snap实现
+
+**核心CSS**：
+```css
+/* H5容器 - 垂直滚动吸附 */
+.h5-article-container {
+  scroll-snap-type: y mandatory;  /* 垂直方向强制吸附 */
+  overflow-y: scroll;              /* 允许垂直滚动 */
+  height: 100vh;                   /* 视口高度 */
+  height: 100dvh;                  /* 动态视口高度（避免地址栏影响） */
+  scroll-behavior: smooth;         /* 平滑滚动 */
+}
+
+/* 单篇文章 - 吸附点 */
+.h5-article-item {
+  scroll-snap-align: start;        /* 吸附到容器顶部 */
+  scroll-snap-stop: always;        /* 每次滚动必停止 */
+  min-height: 100vh;               /* 最小占满屏幕 */
+  min-height: 100dvh;
+  overflow-y: auto;                /* 文章内可滚动 */
+}
+```
+
+**兼容性**：
+- iOS Safari 11+ ✅
+- Android Chrome 69+ ✅
+- 覆盖99%+移动设备
+
+##### 技术要点3: 左右滑动实现（Swiper库）
+
+**技术选型**：
+```json
+{
+  "dependencies": {
+    "swiper": "^11.0.0"
+  }
+}
+```
+
+**实现逻辑**：
+```tsx
+import { Swiper, SwiperSlide } from 'swiper/react';
+import 'swiper/css';
+
+<Swiper
+  direction="horizontal"
+  slidesPerView={1}
+  onSlideChange={(swiper) => {
+    // 切换到新文章时，重置滚动位置到顶部
+    swiper.slides[swiper.activeIndex].scrollTop = 0;
+  }}
+>
+  {contents.map((content) => (
+    <SwiperSlide key={content.id}>
+      <ArticleCard content={content} />
+    </SwiperSlide>
+  ))}
+</Swiper>
+```
+
+##### 技术要点4: 点击展开功能
+
+**状态管理**：
+```tsx
+const [expanded, setExpanded] = useState(false);
+
+// 初始状态：显示前300字
+const preview = content.content.slice(0, 300) + '...';
+
+return (
+  <>
+    <div className="markdown-body">
+      {expanded ? (
+        <MarkdownRenderer content={content.content} /> // 完整内容
+      ) : (
+        <MarkdownRenderer content={preview} />        // 折叠内容
+      )}
+    </div>
+
+    {!expanded && (
+      <button onClick={() => setExpanded(true)}>
+        展开全文 ↓
+      </button>
+    )}
+  </>
+);
+```
+
+##### 技术要点5: Middleware适配
+
+**修改点**：
+```typescript
+// lib/supabase/middleware.ts (line 47后添加)
+
+!request.nextUrl.pathname.startsWith('/h5') && // ← 新增：H5公开访问
+```
+
+#### 📂 影响范围分析
+
+**新建文件** (共 7 个):
+1. `app/(web)/layout.tsx` - Web专用Layout（含Header）
+2. `app/h5/layout.tsx` - H5专用Layout（无Header）
+3. `app/h5/page.tsx` - H5首页
+4. `components/h5/ArticleViewSnapScroll.tsx` - H5主容器组件
+5. `components/h5/ArticleCard.tsx` - H5文章卡片组件
+6. `components/web/` - Web组件目录（将现有组件移入）
+7. `components/shared/` - 共用组件目录
+
+**移动文件** (共 9 个目录/文件):
+- `app/page.tsx` → `app/(web)/page.tsx`
+- `app/tags/` → `app/(web)/tags/`
+- `app/guests/` → `app/(web)/guests/`
+- `app/content/` → `app/(web)/content/`
+- `app/pricing/` → `app/(web)/pricing/`
+- `app/payment/` → `app/(web)/payment/`
+- `app/user/` → `app/(web)/user/`
+- `app/about/` → `app/(web)/about/`
+- `components/TimelineView.tsx等` → `components/web/`
+
+**修改文件** (共 5 个):
+1. `app/layout.tsx` - 精简为根Layout（移除Header）
+2. `lib/supabase/middleware.ts` - 添加/h5公开访问
+3. `package.json` - 添加swiper依赖
+4. `prd.md` - 添加V2.0.0文档（本文档）
+5. `CLAUDE.md` - 更新版本号和架构说明
+
+**完全不影响**:
+- ✅ `lib/transform.ts` - 数据层无需修改
+- ✅ `lib/types.ts` - 类型定义无需修改
+- ✅ `lib/cache.ts` - 缓存逻辑无需修改
+- ✅ `app/api/` - 所有API路由无需修改
+- ✅ `app/auth/` - 认证页面无需修改
+
+**影响评估**:
+- 📦 包大小增加: ~50KB (Swiper库)
+- ⚡ 性能影响: 微乎其微（CSS Scroll Snap原生支持）
+- 🎨 样式影响: 完全隔离（H5独立样式）
+- 🔧 维护成本: 中等（双端独立迭代）
+
+#### 🧪 验证清单
+
+**Phase 1: Web版重构验证**
+- [ ] 所有Web页面URL保持不变（/、/tags、/guests等）
+- [ ] Web版Header正常显示
+- [ ] Web版所有功能正常（登录、阅读、支付等）
+- [ ] 路由跳转正常
+- [ ] SEO不受影响（路由组不影响URL）
+
+**Phase 2: H5版本功能验证**
+- [ ] `/h5` 路由可访问，无Header
+- [ ] 一屏显示一篇完整文章
+- [ ] 垂直滚动可阅读全文
+- [ ] 左右滑动可切换文章
+- [ ] 点击"展开全文"正常工作
+- [ ] 封面图、标签、金句正确显示
+- [ ] Markdown正文渲染正确
+
+**Phase 3: 兼容性验证**
+- [ ] iOS Safari 测试
+- [ ] Android Chrome 测试
+- [ ] 微信内置浏览器测试
+- [ ] 不同屏幕尺寸测试（375px - 428px）
+
+**Phase 4: 性能验证**
+- [ ] 首屏加载 < 2s
+- [ ] 滑动切换流畅（60fps）
+- [ ] 图片懒加载正常
+- [ ] 无内存泄漏
+
+#### 📊 技术债务与优化计划
+
+**已知限制**：
+1. 初始版本不支持H5独立路由（/h5/tags、/h5/guests等）
+2. 左右滑动与垂直滚动可能存在手势冲突（需精细调试）
+3. 微信内置浏览器可能有特殊兼容性问题
+
+**后续优化方向**：
+- V2.1.0: H5标签筛选页
+- V2.2.0: H5搜索功能
+- V2.3.0: H5离线缓存（PWA）
+- V2.4.0: H5分享功能优化
+
+---
 
 ### V1.4.6 - 修正统计徽章域名 🔧
 **版本号**: 1.4.6

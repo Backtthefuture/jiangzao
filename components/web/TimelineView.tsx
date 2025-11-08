@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import TimelineGroup from '@/components/TimelineGroup';
+import TimelineGroup from '@/components/web/TimelineGroup';
 import { Content } from '@/lib/types';
 import { groupContentsByDate } from '@/lib/utils';
 

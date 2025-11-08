@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import ContentCard from '@/components/ContentCard';
+import ContentCard from '@/components/web/ContentCard';
 import { Content } from '@/lib/types';
 
 interface ContentListProps {

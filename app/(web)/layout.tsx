@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import './globals.css';
+import Header from '@/components/shared/Header';
 
 export const metadata: Metadata = {
   title: '降噪 - AI行业访谈精华策展平台',
@@ -7,21 +7,18 @@ export const metadata: Metadata = {
 };
 
 /**
- * 根Layout - V2.0.0
- *
- * 说明：
- * - 只包含html/body和全局样式
- * - Header移至 app/(web)/layout.tsx（Web专用）
- * - H5版本使用 app/h5/layout.tsx（无Header）
+ * Web版本专用Layout
+ * V2.0.0: 使用路由组隔离，包含Header导航栏
  */
-export default function RootLayout({
+export default function WebLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="zh-CN">
-      <body>{children}</body>
-    </html>
+    <>
+      <Header />
+      <main className="min-h-screen">{children}</main>
+    </>
   );
 }

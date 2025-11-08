@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import ContentCard from '@/components/ContentCard';
+import ContentCard from '@/components/web/ContentCard';
 import { Content } from '@/lib/types';
 
 export default function TagFilterPage() {

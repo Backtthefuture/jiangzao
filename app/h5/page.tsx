@@ -1,10 +1,18 @@
-import TimelineView from '@/components/TimelineView';
+import ArticleViewSnapScroll from '@/components/h5/ArticleViewSnapScroll';
 import { getContentsWithImages } from '@/lib/transform';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 21600; // 6 hours ISR
 
-export default async function Home() {
+/**
+ * H5移动端首页 - V2.0.0
+ *
+ * 特点：
+ * - 服务端渲染（SSR）+ ISR缓存
+ * - 复用Web版数据层（getContentsWithImages）
+ * - 传递所有已发布内容给H5组件
+ */
+export default async function H5Home() {
   try {
     // 服务端直接获取数据（利用L1缓存）
     const result = await getContentsWithImages();
@@ -20,22 +28,14 @@ export default async function Home() {
         return b.publishedAt.getTime() - a.publishedAt.getTime();
       });
 
-    // 获取前10条作为初始数据
-    const initialContents = published.slice(0, 10);
-    const total = published.length;
-
-    return (
-      <TimelineView
-        initialContents={initialContents}
-        total={total}
-      />
-    );
+    return <ArticleViewSnapScroll contents={published} />;
   } catch (error) {
-    console.error('[Home] Failed to load contents:', error);
-    // Return error page (server-side rendered)
+    console.error('[H5 Home] Failed to load contents:', error);
+
+    // 返回错误页面
     const errorMessage = error instanceof Error ? error.message : '未知错误';
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8 text-center">
           <div className="text-6xl mb-4">⚠️</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-4">加载失败</h1>
@@ -46,7 +46,7 @@ export default async function Home() {
             {errorMessage}
           </p>
           <div className="text-xs text-gray-400 mt-4">
-            请检查环境变量配置（FEISHU_APP_ID, FEISHU_APP_SECRET, FEISHU_BASE_ID, FEISHU_TABLE_ID）
+            请检查环境变量配置
           </div>
         </div>
       </div>

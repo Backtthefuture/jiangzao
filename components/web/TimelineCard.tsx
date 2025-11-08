@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useMemo } from 'react';
-import TagBadge from './TagBadge';
+import TagBadge from '@/components/shared/TagBadge';
 import { Content } from '@/lib/types';
 import {
   deriveVideoEmbedMeta,
