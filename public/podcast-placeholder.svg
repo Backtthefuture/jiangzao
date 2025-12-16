@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
+  <defs>
+    <!-- 渐变背景 -->
+    <linearGradient id="podcast-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#667eea"/>
+      <stop offset="100%" stop-color="#764ba2"/>
+    </linearGradient>
+
+    <!-- 小宇宙星球渐变 -->
+    <radialGradient id="planet-gradient" cx="50%" cy="30%">
+      <stop offset="0%" stop-color="#5DADE2"/>
+      <stop offset="50%" stop-color="#3498DB"/>
+      <stop offset="100%" stop-color="#2874A6"/>
+    </radialGradient>
+
+    <!-- 光晕效果 -->
+    <radialGradient id="glow">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.4)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="800" height="800" fill="url(#podcast-bg)"/>
+
+  <!-- 柔和光晕 -->
+  <circle cx="400" cy="350" r="250" fill="url(#glow)" opacity="0.6"/>
+
+  <!-- 小宇宙星球主体 -->
+  <circle cx="400" cy="350" r="140" fill="url(#planet-gradient)" opacity="0.95"/>
+
+  <!-- 高光效果 -->
+  <ellipse cx="360" cy="310" rx="50" ry="40" fill="rgba(255,255,255,0.3)"/>
+
+  <!-- 星球环（类似土星环） -->
+  <g transform="translate(400, 350)">
+    <!-- 外环 -->
+    <ellipse cx="0" cy="0" rx="200" ry="60"
+             fill="none" stroke="#1A1A1A" stroke-width="8"
+             opacity="0.8"
+             transform="rotate(-20)"/>
+
+    <!-- 内环 -->
+    <ellipse cx="0" cy="0" rx="200" ry="60"
+             fill="none" stroke="#2C2C2C" stroke-width="4"
+             opacity="0.6"
+             transform="rotate(-20)"/>
+  </g>
+
+  <!-- 装饰性星星 -->
+  <circle cx="200" cy="180" r="3" fill="rgba(255,255,255,0.8)"/>
+  <circle cx="250" cy="250" r="2" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="580" cy="220" r="3" fill="rgba(255,255,255,0.7)"/>
+  <circle cx="630" cy="300" r="2" fill="rgba(255,255,255,0.5)"/>
+  <circle cx="180" cy="400" r="2" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="620" cy="430" r="3" fill="rgba(255,255,255,0.7)"/>
+
+  <!-- 文字提示 -->
+  <text x="400" y="570" text-anchor="middle"
+        font-size="32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        fill="rgba(255,255,255,0.95)" font-weight="600"
+        letter-spacing="1">
+    🎙️ Podcast Cover
+  </text>
+
+  <text x="400" y="620" text-anchor="middle"
+        font-size="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        fill="rgba(255,255,255,0.75)" font-weight="400">
+    Waiting for upload from Feishu...
+  </text>
+</svg>

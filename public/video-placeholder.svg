@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3730a3"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="20" result="blur"/>
+      <feOffset dx="0" dy="12" in="blur" result="offset"/>
+      <feMerge>
+        <feMergeNode in="offset"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="1280" height="720" fill="url(#g)" />
+  <rect x="80" y="60" width="1120" height="600" rx="32" fill="#111827" opacity="0.25"/>
+  <g filter="url(#shadow)">
+    <circle cx="640" cy="360" r="90" fill="rgba(255,255,255,0.88)"/>
+    <polygon points="618,320 698,360 618,400" fill="#111827"/>
+  </g>
+  <text x="640" y="640" text-anchor="middle" font-size="36" font-family="Arial, sans-serif" fill="rgba(255,255,255,0.85)">
+    Waiting for video cover
+  </text>
+</svg>
